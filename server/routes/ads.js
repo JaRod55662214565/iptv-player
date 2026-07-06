@@ -1,20 +1,7 @@
-import { state, saveAds } from '../state.js';
+import { state, saveAds, resetTodayIfNeeded } from '../state.js';
 import { config } from '../config.js';
 import { sendTelegram } from '../services/telegram.js';
 import { escapeHTML, getClientIP } from '../lib/utils.js';
-
-function getTodayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function resetTodayIfNeeded() {
-  const today = getTodayStr();
-  if (state.ADS_DATA.todayDate !== today) {
-    state.ADS_DATA.today = 0;
-    state.ADS_DATA.todayDate = today;
-    saveAds();
-  }
-}
 
 export async function handleAdsRoutes(pathname, req, res, body, url) {
   if (!pathname.startsWith('/api/ads')) return false;

@@ -47,12 +47,12 @@ let popunderInjected = false
 /**
  * Charge le script popunder (ex: Larafly/Monetag direct)
  */
-export function initPopunder() {
+export function initPopunder(force = false) {
   if (!POPUNDER_SRC || !POPUNDER_ZONE) {
     console.log('[Popunder] Disabled or not configured')
     return false
   }
-  if (popunderInjected) {
+  if (!force && popunderInjected) {
     console.log('[Popunder] Deja injecte, ignore')
     return true
   }

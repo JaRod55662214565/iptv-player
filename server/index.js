@@ -60,6 +60,15 @@ await downloadBlocklist();
 setInterval(downloadBlocklist, 12 * 60 * 60 * 1000);
 await registerTelegramWebhook();
 
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${config.PORT} déjà utilisé. Arrête l'ancien processus ou change PORT dans .env`);
+  } else {
+    console.error('❌ Erreur serveur:', err.message);
+  }
+  process.exit(1);
+});
+
 server.listen(config.PORT, '127.0.0.1', () => {
   console.log(`📡 WebTV relay running on http://127.0.0.1:${config.PORT}`);
   console.log(`🔐 Admin: POST /api/admin/auth avec {"password":"..."}`);

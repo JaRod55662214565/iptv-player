@@ -60,7 +60,7 @@ Servir `dist/` avec Nginx (voir `deploy/nginx.conf`).
 | `SITE_URL` | Oui | URL publique du site |
 | `WEBHOOK_URL` | Non | URL pour le webhook Telegram (par défaut = `SITE_URL`) |
 | `TELEGRAM_WEBHOOK_SECRET` | Non | Sécurisation du webhook Telegram (32+ caractères) |
-| Voir `.env.example` pour les variables optionnelles (Monetag, Larafly, Supabase...)
+| Voir `.env.example` pour les variables optionnelles (Monetag, popunder...)
 
 ## Routes API
 

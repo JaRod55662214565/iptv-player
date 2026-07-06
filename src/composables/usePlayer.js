@@ -79,11 +79,10 @@ export function usePlayer(sourceRef, localeRef) {
             }, retryCount * 1000);
           }
         });
-      }
 
-      player.on('loadstart', () => { isLoading.value = true; });
-      player.on('canplay', () => { isLoading.value = false; retryCount = 0; });
-      player.on('error', () => { isLoading.value = false; });
+        player.on('loadstart', () => { isLoading.value = true; });
+        player.on('canplay', () => { isLoading.value = false; retryCount = 0; });
+      }
 
       if (currentSrc.value && currentSrc.value !== lastSrc.value) {
         playSrc(currentSrc.value);

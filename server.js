@@ -1,3 +1,3 @@
 #!/usr/bin/env node
-// Thin entry point — delegates to the modular server/ directory.
+import 'dotenv/config';
 import './server/index.js';

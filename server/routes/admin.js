@@ -152,6 +152,49 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
     return true;
   }
 
+  if (pathname === '/api/admin/whitelist') {
+    if (!verifyToken(req)) return unauth(res);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(readJSON(config.WHITELIST_FILE)));
+    return true;
+  }
+
+  if (pathname === '/api/admin/remove-whitelist') {
+    if (!verifyToken(req)) return unauth(res);
+    const data = JSON.parse(body || '{}');
+    if (!data.ip) { res.writeHead(400); return res.end(JSON.stringify({ error: 'IP required' })); }
+    saveWhitelist(readJSON(config.WHITELIST_FILE).filter(ip => ip !== data.ip));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, removed: data.ip }));
+    return true;
+  }
+
+  if (pathname === '/api/admin/kill-sessions') {
+    if (!verifyToken(req)) return unauth(res);
+    state.ADMIN_TOKEN = null;
+    state.loginAttempts.clear();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, message: 'Toutes les sessions ont été tuées.' }));
+    return true;
+  }
+
+  if (pathname === '/api/admin/security-status') {
+    if (!verifyToken(req)) return unauth(res);
+    const attempts = [];
+    for (const [ip, entry] of state.loginAttempts) {
+      attempts.push({ ip, count: entry.count, resetAt: new Date(entry.resetAt).toISOString() });
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      activeSession: !!state.ADMIN_TOKEN,
+      loginAttempts: attempts,
+      whitelistCount: state.WHITELIST_LOOKUP.size,
+      banCount: state.BANS_LOOKUP.size,
+      premiumCount: state.PREMIUM_LOOKUP.size,
+    }));
+    return true;
+  }
+
   if (pathname === '/api/admin/ads-stats') {
     if (!verifyToken(req)) return unauth(res);
     const limit = parseLimit(url.searchParams.get('limit'));

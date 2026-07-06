@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { config } from '../config.js';
 import { state } from '../state.js';
-import { cidrToRange } from '../lib/utils.js';
+import { cidrToRange, escapeHTML } from '../lib/utils.js';
 
 export async function downloadBlocklist() {
   try {
@@ -54,7 +54,3 @@ export async function lookupIP(ip) {
   }
 }
 
-function escapeHTML(s) {
-  if (typeof s !== 'string') return '';
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}

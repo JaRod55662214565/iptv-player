@@ -1,4 +1,4 @@
-import { state, savePremium } from '../state.js';
+import { state } from '../state.js';
 import { readJSON, writeJSON, serializeWrite } from '../storage.js';
 import { config } from '../config.js';
 import { sendTelegram, handleTelegramWebhook } from '../services/telegram.js';
