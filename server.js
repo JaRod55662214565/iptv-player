@@ -169,6 +169,8 @@ async function registerTelegramWebhook() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         commands: [
+          { command: 'start', description: 'Afficher les commandes disponibles' },
+          { command: 'help', description: 'Afficher les commandes disponibles' },
           { command: 'ip', description: 'Interroger une IP (ex: /ip 1.2.3.4)' },
         ],
       }),
@@ -393,11 +395,13 @@ async function handleVisit(req, body) {
   return session;
 }
 
-async function handleAdminAuth(body) {
+async function handleAdminAuth(body, ip) {
   if (body.password === ADMIN_PASSWORD) {
     const token = crypto.randomBytes(20).toString('hex');
+    console.log(`[Admin] Connexion reussie depuis ${ip}`);
     return { ok: true, token };
   }
+  console.log(`[Admin] Echec connexion depuis ${ip}`);
   return { ok: false, error: 'Mot de passe incorrect' };
 }
 
@@ -456,6 +460,7 @@ const server = http.createServer(async (req, res) => {
         `📥 <b>Réponse entrée:</b> <code>${escapeHTML(data.input || '')}</code>`,
       ].join('\n');
       await sendTelegram(msg, clientIP);
+      console.log(`[Captcha] Echec pour ${clientIP}: ${data.equation} → ${data.input}`);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true }));
 
@@ -484,7 +489,7 @@ const server = http.createServer(async (req, res) => {
     } else if (pathname === '/api/admin/auth') {
       if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
       const data = JSON.parse(body || '{}');
-      const result = await handleAdminAuth(data);
+      const result = await handleAdminAuth(data, getClientIP(req));
       res.writeHead(result.ok ? 200 : 401, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(result));
 
@@ -648,40 +653,83 @@ const server = http.createServer(async (req, res) => {
         const chatId = update.message.chat.id;
         const cmd = update.message.text.trim();
 
-        if (cmd.startsWith('/ip ')) {
-          const ip = cmd.slice(4).trim();
-          const visit = VISITS.find(v => v.ip === ip);
-          const isBanned = BANS_LOOKUP.has(ip);
-          const isPremium = PREMIUM_LOOKUP.has(ip);
-          const isWhitelisted = WHITELIST_LOOKUP.has(ip);
-
-          const lines = [
-            `🔍 <b>IP Lookup:</b> <code>${escapeHTML(ip)}</code>`,
-            isBanned ? '🚫 <b>Statut:</b> Banni' : isPremium ? '💎 <b>Statut:</b> Premium' : isWhitelisted ? '✅ <b>Statut:</b> Whitelisté' : '🟢 <b>Statut:</b> Normal',
-            visit ? `📅 <b>Dernière visite:</b> ${new Date(visit.timestamp).toLocaleString()}` : '📅 <b>Dernière visite:</b> Aucune',
-            visit ? `🌍 <b>Pays:</b> ${visit.country || 'Inconnu'} ${visit.countryCode || ''}` : null,
-            visit ? `📡 <b>ISP:</b> ${visit.isp || 'Inconnu'}` : null,
-            visit ? `📱 <b>Appareil:</b> ${visit.deviceType || 'Inconnu'} — ${visit.browser || '?'} ${visit.os || ''}` : null,
-            visit ? `📺 <b>Chaîne:</b> ${visit.channelName || 'Aucune'}` : null,
-          ].filter(Boolean).join('\n');
-
-          const buttons = [];
-          if (isBanned) buttons.push({ text: '🔓 Débloquer', callback_data: `unban_${ip}` });
-          buttons.push({ text: '🔐 Panel', url: `${SITE_URL}/panel` });
-          if (!isPremium) buttons.push({ text: '💎 Premium', callback_data: `premium_${ip}` });
-
+        if (cmd === '/start' || cmd === '/help') {
+          const msg = [
+            `🤖 <b>WebTV Bot</b> — Commandes disponibles :`,
+            ``,
+            `🔍 <code>/ip &lt;adresse&gt;</code> — Interroger une IP`,
+            `   Ex: <code>/ip 52.16.245.145</code>`,
+            ``,
+            `📢 Les boutons inline sur les notifications permettent de :`,
+            `   • 🔓 Débloquer une IP`,
+            `   • 💎 Passer une IP en Premium`,
+            `   • 📢 Push une pub à tous les visiteurs`,
+            `   • 🔐 Accéder au panel admin`,
+          ].join('\n');
           if (BOT_TOKEN) {
             await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                chat_id: chatId, text: lines, parse_mode: 'HTML',
-                disable_web_page_preview: true,
-                reply_markup: { inline_keyboard: [buttons] },
-              }),
+              body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML' }),
             });
           }
-          console.log(`[Telegram] /ip lookup: ${ip}`);
+          console.log('[Telegram] /start ou /help');
+
+        } else if (cmd.startsWith('/ip')) {
+          const ip = cmd.length > 4 ? cmd.slice(4).trim() : '';
+          if (!ip || !/^[\da-f:.]+$/i.test(ip)) {
+            if (BOT_TOKEN) {
+              await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: chatId, text: `⚠️ Usage: <code>/ip &lt;adresse&gt;</code>\nEx: <code>/ip 52.16.245.145</code>`, parse_mode: 'HTML' }),
+              });
+            }
+            console.log(`[Telegram] /ip usage invalide: "${cmd}"`);
+          } else {
+            const visit = VISITS.find(v => v.ip === ip);
+            const isBanned = BANS_LOOKUP.has(ip);
+            const isPremium = PREMIUM_LOOKUP.has(ip);
+            const isWhitelisted = WHITELIST_LOOKUP.has(ip);
+
+            const lines = [
+              `🔍 <b>IP Lookup:</b> <code>${escapeHTML(ip)}</code>`,
+              isBanned ? '🚫 <b>Statut:</b> Banni' : isPremium ? '💎 <b>Statut:</b> Premium' : isWhitelisted ? '✅ <b>Statut:</b> Whitelisté' : '🟢 <b>Statut:</b> Normal',
+              visit ? `📅 <b>Dernière visite:</b> ${new Date(visit.timestamp).toLocaleString()}` : '📅 <b>Dernière visite:</b> Aucune',
+              visit ? `🌍 <b>Pays:</b> ${visit.country || 'Inconnu'} ${visit.countryCode || ''}` : null,
+              visit ? `📡 <b>ISP:</b> ${visit.isp || 'Inconnu'}` : null,
+              visit ? `📱 <b>Appareil:</b> ${visit.deviceType || 'Inconnu'} — ${visit.browser || '?'} ${visit.os || ''}` : null,
+              visit ? `📺 <b>Chaîne:</b> ${visit.channelName || 'Aucune'}` : null,
+            ].filter(Boolean).join('\n');
+
+            const buttons = [];
+            if (isBanned) buttons.push({ text: '🔓 Débloquer', callback_data: `unban_${ip}` });
+            buttons.push({ text: '🔐 Panel', url: `${SITE_URL}/panel` });
+            if (!isPremium) buttons.push({ text: '💎 Premium', callback_data: `premium_${ip}` });
+
+            if (BOT_TOKEN) {
+              await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  chat_id: chatId, text: lines, parse_mode: 'HTML',
+                  disable_web_page_preview: true,
+                  reply_markup: { inline_keyboard: [buttons] },
+                }),
+              });
+            }
+            console.log(`[Telegram] /ip lookup: ${ip}`);
+          }
+        } else {
+          // Commande inconnue
+          if (BOT_TOKEN) {
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: chatId, text: `❌ Commande inconnue. Tape /help pour la liste des commandes.`, parse_mode: 'HTML' }),
+            });
+          }
+          console.log(`[Telegram] Commande inconnue: "${cmd}"`);
         }
       }
 
@@ -690,6 +738,7 @@ const server = http.createServer(async (req, res) => {
         const data = cq.data || '';
         const chatId = cq.message?.chat?.id;
         const msgId = cq.message?.message_id;
+        console.log(`[Telegram] Callback recu: ${data}`);
         if (data.startsWith('unban_')) {
           const ip = data.slice(6);
           saveBans(readJSON(BANS_FILE).filter(b => b.ip !== ip));
