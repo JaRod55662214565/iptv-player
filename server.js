@@ -161,6 +161,22 @@ async function registerTelegramWebhook() {
   } catch (e) {
     console.error('[Telegram] Webhook registration error:', e.message);
   }
+
+  // Enregistrer les commandes du bot
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/setMyCommands`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        commands: [
+          { command: 'ip', description: 'Interroger une IP (ex: /ip 1.2.3.4)' },
+        ],
+      }),
+    });
+    console.log('[Telegram] Bot commands registered');
+  } catch (e) {
+    console.error('[Telegram] Bot commands registration error:', e.message);
+  }
 }
 
 async function downloadBlocklist() {
@@ -627,6 +643,44 @@ const server = http.createServer(async (req, res) => {
     } else if (pathname === '/api/telegram-webhook') {
       if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
       const update = JSON.parse(body || '{}');
+
+      if (update.message && update.message.text) {
+        const chatId = update.message.chat.id;
+        const cmd = update.message.text.trim();
+
+        if (cmd.startsWith('/ip ')) {
+          const ip = cmd.slice(4).trim();
+          const visit = VISITS.find(v => v.ip === ip);
+          const isBanned = BANS_LOOKUP.has(ip);
+          const isPremium = PREMIUM_LOOKUP.has(ip);
+          const isWhitelisted = WHITELIST_LOOKUP.has(ip);
+
+          const lines = [
+            `🔍 <b>IP Lookup:</b> <code>${escapeHTML(ip)}</code>`,
+            isBanned ? '🚫 <b>Statut:</b> Banni' : isPremium ? '💎 <b>Statut:</b> Premium' : isWhitelisted ? '✅ <b>Statut:</b> Whitelisté' : '🟢 <b>Statut:</b> Normal',
+            visit ? `📅 <b>Dernière visite:</b> ${new Date(visit.timestamp).toLocaleString()}` : '📅 <b>Dernière visite:</b> Aucune',
+            visit ? `🌍 <b>Pays:</b> ${visit.country || 'Inconnu'} ${visit.countryCode || ''}` : null,
+            visit ? `📡 <b>ISP:</b> ${visit.isp || 'Inconnu'}` : null,
+            visit ? `📱 <b>Appareil:</b> ${visit.deviceType || 'Inconnu'} — ${visit.browser || '?'} ${visit.os || ''}` : null,
+            visit ? `📺 <b>Chaîne:</b> ${visit.channelName || 'Aucune'}` : null,
+            isBanned ? `🔓 /unban_${ip}` : null,
+            isPremium ? null : `💎 /premium_${ip}`,
+          ].filter(Boolean).join('\n');
+
+          if (BOT_TOKEN) {
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: chatId, text: lines, parse_mode: 'HTML',
+                disable_web_page_preview: true,
+              }),
+            });
+          }
+          console.log(`[Telegram] /ip lookup: ${ip}`);
+        }
+      }
+
       if (update.callback_query) {
         const cq = update.callback_query;
         const data = cq.data || '';
