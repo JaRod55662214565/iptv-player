@@ -17,7 +17,9 @@ const props = defineProps({
   }
 })
 
-const showAds = ref(import.meta.env.VITE_MONETAG_ENABLED === 'true')
+const isPremium = ref(localStorage.getItem('webtv_premium_unlocked') === 'true')
+const monetagEnabled = import.meta.env.VITE_MONETAG_ENABLED === 'true'
+const showAds = ref(monetagEnabled && !isPremium.value)
 const containerId = computed(() => `monetag-ad-${props.position}`)
 
 onMounted(() => {

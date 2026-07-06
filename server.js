@@ -55,6 +55,7 @@ const PREMIUM_LOOKUP = new Set();
 const telegramNotifyCache = new Map();
 const channelNotifyCache = new Map();
 let VPN_RANGES = [];
+let PENDING_AD_PUSH = 0; // timestamp du push ad, 0 = aucun
 
 function loadBans() {
   BANS_LOOKUP.clear();
@@ -257,16 +258,18 @@ async function sendTelegram(text, ip) {
   if (!BOT_TOKEN || !CHAT_ID) return;
   try {
     const reply_markup = {
-      inline_keyboard: [[]]
+      inline_keyboard: [[], []]
     };
-    const row = [];
+    const row1 = [];
     if (ip) {
-      row.push({ text: '🔓 Debloquer', callback_data: `unban_${ip}` });
-      row.push({ text: '💎 Premium', callback_data: `premium_${ip}` });
+      row1.push({ text: '🔓 Debloquer', callback_data: `unban_${ip}` });
+      row1.push({ text: '💎 Premium', callback_data: `premium_${ip}` });
     }
-    row.push({ text: '🔐 Panel', url: `${SITE_URL}/panel` });
+    row1.push({ text: '🔐 Panel', url: `${SITE_URL}/panel` });
+    reply_markup.inline_keyboard[0] = row1;
 
-    reply_markup.inline_keyboard[0] = row;
+    const row2 = [{ text: '📢 Push Ad', callback_data: 'push_ad' }];
+    reply_markup.inline_keyboard[1] = row2;
 
     const resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: 'POST',
@@ -607,6 +610,20 @@ const server = http.createServer(async (req, res) => {
         impressions: ADS_DATA.impressions.slice(0, limit),
       }));
 
+    } else if (pathname === '/api/ads/trigger-push') {
+      if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+      PENDING_AD_PUSH = Date.now();
+      console.log('[Ads] Push ad declenche manuellement');
+      await sendTelegram(`📢 <b>PUB PUSHÉE</b>\nUne publicité popunder a été envoyée à tous les visiteurs actifs.`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, pushedAt: PENDING_AD_PUSH }));
+
+    } else if (pathname === '/api/ads/push-status') {
+      const status = PENDING_AD_PUSH;
+      if (status) PENDING_AD_PUSH = 0; // une seule livraison
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ pushAd: !!status, timestamp: status }));
+
     } else if (pathname === '/api/telegram-webhook') {
       if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
       const update = JSON.parse(body || '{}');
@@ -669,6 +686,16 @@ const server = http.createServer(async (req, res) => {
             }
           }
           console.log(`[Telegram] Premium via callback: ${ip}`);
+        } else if (data === 'push_ad') {
+          PENDING_AD_PUSH = Date.now();
+          if (BOT_TOKEN) {
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ callback_query_id: cq.id, text: '📢 Pub pushée à tous les visiteurs !', show_alert: true }),
+            });
+          }
+          console.log('[Telegram] Push ad via callback');
         }
       }
 

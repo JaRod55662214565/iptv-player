@@ -64,16 +64,6 @@ function loadAds() {
 
   adsLoaded.value = true;
 
-  initPopunder();
-
-  const markAdShown = () => {
-    try {
-      localStorage.setItem('webtv_last_ad_time', Date.now().toString());
-    } catch {}
-    window.removeEventListener('click', markAdShown, true);
-  };
-  window.addEventListener('click', markAdShown, true);
-
   fetch('/api/ads/shown', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -82,6 +72,23 @@ function loadAds() {
       streamUrl: url.value || '',
     }),
   }).catch(() => {});
+}
+
+// Vérifie si admin a pushé une pub via Telegram
+function startAdPushPolling() {
+  setInterval(async () => {
+    try {
+      const res = await fetch('/api/ads/push-status');
+      const data = await res.json();
+      if (data.pushAd) {
+        console.log('[Ads] Push ad recu du serveur');
+        initPopunder();
+        try {
+          localStorage.setItem('webtv_last_ad_time', Date.now().toString());
+        } catch {}
+      }
+    } catch {}
+  }, 15000); // toutes les 15s
 }
 
 function selectFirst() {
@@ -179,6 +186,7 @@ onMounted(async () => {
 
   handleHash();
   loadForMode(currentMode.value, !!url.value);
+  startAdPushPolling();
   try {
     const res = await fetch('/api/telegram', {
       method: 'POST',
