@@ -594,7 +594,7 @@ const server = http.createServer(async (req, res) => {
         adsData.streamUrl ? `🔗 <b>Flux:</b> <code>${escapeHTML(adsData.streamUrl)}</code>` : null,
         `📊 <b>Total:</b> ${ADS_DATA.total} | <b>Aujourd'hui:</b> ${ADS_DATA.today}`,
       ].filter(Boolean).join('\n');
-      sendTelegram(msg, clientIP);
+      await sendTelegram(msg, clientIP);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, total: ADS_DATA.total, today: ADS_DATA.today }));
 
