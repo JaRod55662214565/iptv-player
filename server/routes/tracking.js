@@ -46,10 +46,11 @@ async function handleVisit(req, body) {
   const statusIcon = session.isBanned ? '🚫' : session.isDatacenter ? '🤖' : session.isProxy ? '⚠️' : '✅';
   const statusLabel = session.isBanned ? 'Banned' : session.isDatacenter ? 'Bot/DC' : session.isProxy ? 'Proxy' : 'Human visitor';
 
-  const existingSession = state.VISITS.find(v => v.ip === clientIP);
-  const clientHeader = existingSession
-    ? `🆔 Client Already Exists\n  ↳ <code>${escapeHTML(existingSession.id)}</code>`
-    : `🆔 New Client\n  ↳ <code>${escapeHTML(session.id)}</code>`;
+  const visitCount = state.VISITS.filter(v => v.ip === clientIP).length;
+  const isReturning = visitCount > 1;
+  const clientHeader = isReturning
+    ? `🆔 <b>Visiteur connu</b> (${visitCount} visites)\n  ↳ <code>${escapeHTML(session.id)}</code>`
+    : `🆕 <b>Nouveau visiteur</b>\n  ↳ <code>${escapeHTML(session.id)}</code>`;
 
   const cityParts = [];
   if (session.city) cityParts.push(session.city);
@@ -64,8 +65,8 @@ async function handleVisit(req, body) {
     `${statusIcon} <b>Status:</b> ${escapeHTML(statusLabel)}`,
     `📍 <b>IP:</b> <code>${escapeHTML(session.ip)}</code>`,
     cityStr ? `🏙️ <b>Ville:</b> ${escapeHTML(cityStr)}` : null,
-    `🌍 <b>Pays:</b> ${session.countryCode || ''}`,
-    `📡 <b>ISP:</b> ${session.isp}`,
+    `🌍 <b>Pays:</b> ${escapeHTML(session.country || 'Inconnu')} ${session.countryCode || ''}`,
+    `📡 <b>ISP:</b> ${escapeHTML(session.isp || 'Inconnu')}`,
     body.channelName ? `📺 <b>Chaîne:</b> ${escapeHTML(body.channelName)}` : null,
     body.streamUrl ? `🔗 <b>Flux:</b> <code>${escapeHTML(body.streamUrl)}</code>` : null,
     `<a href="${mapsLink}">🗺️ Voir sur Google Maps</a>`,
@@ -137,7 +138,7 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
       const msg = [
         `📺 <b>CHAÎNE SÉLECTIONNÉE</b>`,
         `📍 <b>IP:</b> <code>${escapeHTML(clientIP)}</code>`,
-        `📺 <b>Chaîne:</b> ${escapeHTML(data.channelName || "Page d'accueil")}`,
+        `🎬 <b>Chaîne:</b> ${escapeHTML(data.channelName || "Page d'accueil")}`,
         data.streamUrl ? `🔗 <b>Flux:</b> <code>${escapeHTML(data.streamUrl)}</code>` : null,
       ].filter(Boolean).join('\n');
       await sendTelegram(msg, clientIP);

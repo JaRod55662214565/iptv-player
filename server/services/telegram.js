@@ -97,7 +97,12 @@ export async function sendTelegram(text, ip) {
     row1.push({ text: '🔐 Panel', url: `${config.SITE_URL}/panel` });
     reply_markup.inline_keyboard[0] = row1;
 
-    const row2 = [{ text: '📢 Push Ad', callback_data: 'push_ad' }];
+    const row2 = [
+      { text: '📢 Push Ad (global)', callback_data: 'push_ad' },
+    ];
+    if (ip) {
+      row2.push({ text: '📢 Push (cette IP)', callback_data: `push_ip_${ip}` });
+    }
     reply_markup.inline_keyboard[1] = row2;
 
     const resp = await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
@@ -235,7 +240,7 @@ export async function handleTelegramWebhook(update) {
           visit ? `📅 <b>Dernière visite:</b> ${new Date(visit.timestamp).toLocaleString()}` : '📅 <b>Dernière visite:</b> Aucune',
           visit && cityStr ? `🏙️ <b>Ville:</b> ${escapeHTML(cityStr)}` : null,
           visit ? `🌍 <b>Pays:</b> ${escapeHTML(visit.country || 'Inconnu')} ${escapeHTML(visit.countryCode || '')}` : null,
-          visit ? `📡 <b>ISP:</b> ${visit.isp || 'Inconnu'}` : null,
+          visit ? `📡 <b>ISP:</b> ${escapeHTML(visit.isp || 'Inconnu')}` : null,
           visit ? `📱 <b>Appareil:</b> ${visit.deviceType || 'Inconnu'} — ${visit.browser || '?'} ${visit.os || ''}` : null,
           visit ? `📺 <b>Chaîne:</b> ${escapeHTML(visit.channelName || 'Aucune')}` : null,
           visit ? `🗺️ <a href="${mapsLink}">Voir sur Google Maps</a>` : null,
@@ -247,12 +252,16 @@ export async function handleTelegramWebhook(update) {
         } else {
           buttons.push({ text: '⛔ Bloquer', callback_data: `block_${ip}` });
         }
-        buttons.push({ text: '🔐 Panel', url: `${config.SITE_URL}/panel` });
         if (isPremium) {
           buttons.push({ text: '🔻 Retirer Premium', callback_data: `unpremium_${ip}` });
         } else {
           buttons.push({ text: '💎 Premium', callback_data: `premium_${ip}` });
         }
+        // Ligne 2: push pub ciblé + panel
+        const buttons2 = [
+          { text: '📢 Push Pub (cette IP)', callback_data: `push_ip_${ip}` },
+          { text: '🔐 Panel', url: `${config.SITE_URL}/panel` },
+        ];
 
         if (config.BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
@@ -261,7 +270,7 @@ export async function handleTelegramWebhook(update) {
             body: JSON.stringify({
               chat_id: chatId, text: lines, parse_mode: 'HTML',
               disable_web_page_preview: true,
-              reply_markup: { inline_keyboard: [buttons] },
+              reply_markup: { inline_keyboard: [buttons, buttons2] },
             }),
           });
         }
@@ -392,9 +401,9 @@ export async function handleTelegramWebhook(update) {
       const msg = [
         `🛠️ <b>Admin Panel — Actions rapides</b>`,
         ``,
-        `👥 Visites: <b>${s.totalVisits}</b> | IP: <b>${s.uniqueIPs}</b>`,
-        `🔒 Bannis: <b>${s.bans}</b> | 💎 Premium: <b>${s.premiums}</b>`,
-        `📢 Pubs: <b>${s.adsToday}</b> aujourd'hui / <b>${s.adsTotal}</b> total`,
+        `👥 Visites: <b>${s.totalVisits}</b>  |  🌐 IP uniques: <b>${s.uniqueIPs}</b>`,
+        `🚫 Bannis: <b>${s.bans}</b>  |  💎 Premium: <b>${s.premiums}</b>  |  ✅ Whitelistés: <b>${s.whitelisted}</b>`,
+        `📢 Pubs aujourd'hui: <b>${s.adsToday}</b>  |  Total: <b>${s.adsTotal}</b>`,
       ].join('\n');
 
       const keyboard = [
@@ -549,8 +558,21 @@ export async function handleTelegramWebhook(update) {
         }
       }
       console.log(`[Telegram] Unpremium via callback: ${ip}`);
+    } else if (data.startsWith('push_ip_')) {
+      const targetIP = data.slice(8);
+      state.PENDING_AD_PUSH = Date.now();
+      state.PENDING_AD_PUSH_IP = targetIP;
+      if (config.BOT_TOKEN) {
+        await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callback_query_id: cq.id, text: `📢 Pub envoyée à ${targetIP} !`, show_alert: true }),
+        });
+      }
+      console.log(`[Telegram] Push ad ciblé vers: ${targetIP}`);
     } else if (data === 'push_ad') {
       state.PENDING_AD_PUSH = Date.now();
+      state.PENDING_AD_PUSH_IP = null; // global
       if (config.BOT_TOKEN) {
         await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
           method: 'POST',
@@ -690,9 +712,10 @@ export async function handleTelegramWebhook(update) {
         `🛠️ <b>Admin Panel — Actions rapides</b>`,
         ``,
         `✅ Données rafraîchies.`,
-        `👥 Visites: <b>${s.totalVisits}</b> | IP: <b>${s.uniqueIPs}</b>`,
-        `🔒 Bannis: <b>${s.bans}</b> | 💎 Premium: <b>${s.premiums}</b>`,
-        `📢 Pubs: <b>${s.adsToday}</b> aujourd'hui / <b>${s.adsTotal}</b> total`,
+        ``,
+        `👥 Visites: <b>${s.totalVisits}</b>  |  🌐 IP uniques: <b>${s.uniqueIPs}</b>`,
+        `🚫 Bannis: <b>${s.bans}</b>  |  💎 Premium: <b>${s.premiums}</b>  |  ✅ Whitelistés: <b>${s.whitelisted}</b>`,
+        `📢 Pubs aujourd'hui: <b>${s.adsToday}</b>  |  Total: <b>${s.adsTotal}</b>`,
       ].join('\n');
 
       if (config.BOT_TOKEN) {

@@ -10,6 +10,7 @@ export const state = {
   PREMIUM_LOOKUP: new Set(),
   VPN_RANGES: [],
   PENDING_AD_PUSH: 0,
+  PENDING_AD_PUSH_IP: null, // null = tous, string IP = ciblage spécifique
   telegramNotifyCache: new Map(),
   channelNotifyCache: new Map(),
   ADS_DATA: null,
@@ -80,6 +81,7 @@ export function loadState() {
     state.ADS_DATA = { total: 0, today: 0, todayDate: '', impressions: [] };
   }
   state.PENDING_AD_PUSH = 0;
+  state.PENDING_AD_PUSH_IP = null;
 }
 
 export function loadFavorites() {

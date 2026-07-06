@@ -37,11 +37,14 @@ export async function handleAdsRoutes(pathname, req, res, body, url) {
 
   if (pathname === '/api/ads/trigger-push') {
     if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+    const pushData = JSON.parse(body || '{}');
     state.PENDING_AD_PUSH = Date.now();
-    console.log('[Ads] Push ad declenche manuellement');
-    await sendTelegram(`📢 <b>PUB PUSHÉE</b>\nUne publicité popunder a été envoyée à tous les visiteurs actifs.`);
+    state.PENDING_AD_PUSH_IP = pushData.targetIP || null;
+    const label = state.PENDING_AD_PUSH_IP ? `IP: <code>${escapeHTML(state.PENDING_AD_PUSH_IP)}</code>` : 'tous les visiteurs actifs';
+    console.log(`[Ads] Push ad declenche: ${state.PENDING_AD_PUSH_IP || 'global'}`);
+    await sendTelegram(`📢 <b>PUB PUSHÉE</b>\nCible: ${label}`);
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, pushedAt: state.PENDING_AD_PUSH }));
+    res.end(JSON.stringify({ ok: true, pushedAt: state.PENDING_AD_PUSH, targetIP: state.PENDING_AD_PUSH_IP }));
     return true;
   }
 
@@ -49,9 +52,13 @@ export async function handleAdsRoutes(pathname, req, res, body, url) {
     const status = state.PENDING_AD_PUSH;
     const now = Date.now();
     const active = status && (now - status < config.PUSH_EXPIRY_MS);
-    if (status && !active) state.PENDING_AD_PUSH = 0;
+    if (status && !active) { state.PENDING_AD_PUSH = 0; state.PENDING_AD_PUSH_IP = null; }
+    // Si push ciblé par IP: vérifier que le client correspond
+    const clientIP = getClientIP(req);
+    const isTargeted = state.PENDING_AD_PUSH_IP !== null;
+    const matchesTarget = !isTargeted || state.PENDING_AD_PUSH_IP === clientIP;
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ pushAd: active, timestamp: status }));
+    res.end(JSON.stringify({ pushAd: active && matchesTarget, timestamp: status }));
     return true;
   }
 
