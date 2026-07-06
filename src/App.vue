@@ -135,7 +135,8 @@ async function loadForMode(mode, keep = false) {
   try {
     await load(mode, selectedCountry.value, keep);
     if (!keep) selectFirst();
-  } catch {
+  } catch (err) {
+    console.error('[loadForMode error]', err);
     tvs.value = [{ name: 'Erreur de chargement', isTv: false }];
   }
 }
