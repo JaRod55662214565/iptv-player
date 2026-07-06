@@ -269,6 +269,7 @@ function detectDeviceType(ua) {
 
 async function sendTelegram(text, ip) {
   if (!BOT_TOKEN || !CHAT_ID) return;
+  if (text.length > 3900) text = text.slice(0, 3900) + '\n\n... (tronqué)';
   try {
     const reply_markup = {
       inline_keyboard: [[], []]
@@ -531,7 +532,7 @@ const server = http.createServer(async (req, res) => {
         bans.push({ ip: data.ip, reason: data.reason || '', date: new Date().toISOString() });
         saveBans(bans);
         saveWhitelist(readJSON(WHITELIST_FILE).filter(ip => ip !== data.ip));
-        await sendTelegram(`🚫 <b>IP BANNIE (Panel Admin)</b>\n📍 <b>IP:</b> <code>${data.ip}</code>\n💬 <b>Raison:</b> ${data.reason || 'Aucune'}`);
+        await sendTelegram(`🚫 <b>IP BANNIE (Panel Admin)</b>\n📍 <b>IP:</b> <code>${escapeHTML(data.ip)}</code>\n💬 <b>Raison:</b> ${escapeHTML(data.reason || 'Aucune')}`);
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, banned: data.ip }));
@@ -547,7 +548,7 @@ const server = http.createServer(async (req, res) => {
         whitelist.push(data.ip);
         saveWhitelist(whitelist);
       }
-      await sendTelegram(`✅ <b>IP DEBANNIE & AUTORISÉE (Panel Admin)</b>\n📍 <b>IP:</b> <code>${data.ip}</code>`);
+      await sendTelegram(`✅ <b>IP DEBANNIE &amp; AUTORISÉE (Panel Admin)</b>\n📍 <b>IP:</b> <code>${escapeHTML(data.ip)}</code>`);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, unbanned: data.ip }));
 
@@ -565,7 +566,7 @@ const server = http.createServer(async (req, res) => {
       if (!list.find(p => p.ip === data.ip)) {
         list.push({ ip: data.ip, date: new Date().toISOString() });
         savePremium(list);
-        await sendTelegram(`💎 <b>IP PASSÉE PREMIUM (Panel Admin)</b>\n📍 <b>IP:</b> <code>${data.ip}</code>`);
+        await sendTelegram(`💎 <b>IP PASSÉE PREMIUM (Panel Admin)</b>\n📍 <b>IP:</b> <code>${escapeHTML(data.ip)}</code>`);
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, premium: data.ip }));
@@ -575,7 +576,7 @@ const server = http.createServer(async (req, res) => {
       const data = JSON.parse(body || '{}');
       if (!data.ip) { res.writeHead(400); return res.end(JSON.stringify({ error: 'IP required' })); }
       savePremium(readJSON(PREMIUM_FILE).filter(p => p.ip !== data.ip));
-      await sendTelegram(`⚠️ <b>IP RETIRÉE DU PREMIUM (Panel Admin)</b>\n📍 <b>IP:</b> <code>${data.ip}</code>`);
+      await sendTelegram(`⚠️ <b>IP RETIRÉE DU PREMIUM (Panel Admin)</b>\n📍 <b>IP:</b> <code>${escapeHTML(data.ip)}</code>`);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, removed: data.ip }));
 
@@ -631,7 +632,7 @@ const server = http.createServer(async (req, res) => {
             if (!list.find(p => p.ip === clientIP)) {
               list.push({ ip: clientIP, date: new Date().toISOString() });
               savePremium(list);
-              await sendTelegram(`💎 <b>Premium activé via Stripe</b>\n📍 <b>IP:</b> <code>${clientIP}</code>`);
+              await sendTelegram(`💎 <b>Premium activé via Stripe</b>\n📍 <b>IP:</b> <code>${escapeHTML(clientIP)}</code>`);
             }
           }
         }
@@ -809,12 +810,13 @@ const server = http.createServer(async (req, res) => {
             premiumLines,
             premiums.length > 20 ? `... et ${premiums.length - 20} de plus` : '',
           ].filter(Boolean).join('\n');
+          const truncated = msg.length > 4000 ? msg.slice(0, 4000) + '\n\n... (tronqué)' : msg;
 
           if (BOT_TOKEN) {
             await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML' }),
+              body: JSON.stringify({ chat_id: chatId, text: truncated, parse_mode: 'HTML' }),
             });
           }
           console.log('[Telegram] /list');
@@ -850,7 +852,7 @@ const server = http.createServer(async (req, res) => {
             await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ callback_query_id: cq.id, text: `✅ ${ip} debloque & autorise`, show_alert: true }),
+              body: JSON.stringify({ callback_query_id: cq.id, text: `✅ ${ip} debloque et autorise`, show_alert: true }),
             });
             if (chatId && msgId) {
               await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
@@ -858,7 +860,7 @@ const server = http.createServer(async (req, res) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   chat_id: chatId, message_id: msgId,
-                  text: `✅ <b>DEBLOQUE & AUTORISE</b>\n\nIP: <code>${ip}</code>`,
+                  text: `✅ <b>DEBLOQUE &amp; AUTORISE</b>\n\nIP: <code>${ip}</code>`,
                   parse_mode: 'HTML',
                 }),
               });
