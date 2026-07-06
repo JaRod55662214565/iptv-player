@@ -32,7 +32,7 @@ export async function lookupIP(ip) {
     return { ip, country: 'Local', isp: 'Localhost', isProxy: false, isHosting: false, isMobile: false };
   }
   try {
-    const resp = await fetch(`https://ip-api.com/json/${ip}?fields=status,query,isp,org,country,countryCode,city,regionName,proxy,hosting,mobile`, {
+    const resp = await fetch(`http://ip-api.com/json/${ip}?fields=status,query,isp,org,country,countryCode,city,regionName,proxy,hosting,mobile`, {
       signal: AbortSignal.timeout(5000),
     });
     if (!resp.ok) return { ip, country: 'Unknown', isp: 'Unknown' };
