@@ -38,7 +38,7 @@ export async function handleStripeRoutes(pathname, req, res, body) {
     } catch (err) {
       console.error('[Stripe Error]', err);
       res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: err.message }));
+      res.end(JSON.stringify({ error: 'Payment processing error' }));
     }
     return true;
   }
@@ -73,7 +73,7 @@ export async function handleStripeRoutes(pathname, req, res, body) {
     } catch (err) {
       console.error('[Stripe Webhook Error]', err.message);
       res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: err.message }));
+      res.end(JSON.stringify({ error: 'Payment processing error' }));
     }
     return true;
   }

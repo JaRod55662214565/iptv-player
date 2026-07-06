@@ -13,6 +13,12 @@ export async function handleFavoritesRoutes(pathname, req, res, body) {
     }
 
     if (req.method === 'POST') {
+      // Anti-CSRF: verifier header X-Requested-With
+      if (req.headers['x-requested-with'] !== 'XMLHttpRequest') {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Forbidden: missing CSRF header' }));
+        return true;
+      }
       try {
         const data = JSON.parse(body || '{}');
         state.FAVORITES_DATA[clientIP] = Array.isArray(data.items) ? data.items : [];

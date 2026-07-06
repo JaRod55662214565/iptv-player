@@ -5,8 +5,25 @@ import { readJSON } from '../storage.js';
 import { sendTelegram } from '../services/telegram.js';
 import { escapeHTML, getClientIP, parseLimit } from '../lib/utils.js';
 
+function isValidIP(ip) {
+  if (!ip || typeof ip !== 'string') return false;
+  const ipv4 = /^(\d{1,3}\.){3}\d{1,3}$/;
+  const ipv6 = /^[0-9a-fA-F:]{2,39}$/;
+  if (ipv4.test(ip)) {
+    const parts = ip.split('.').map(Number);
+    return parts.every(p => p >= 0 && p <= 255);
+  }
+  return ipv6.test(ip);
+}
+
 function handleAdminAuth(body, ip) {
-  if (body.password === config.ADMIN_PASSWORD) {
+  const pwd = (body.password || '').padEnd(64).slice(0, 64);
+  const expected = (config.ADMIN_PASSWORD || '').padEnd(64).slice(0, 64);
+  const a = Buffer.from(pwd);
+  const b = Buffer.from(expected);
+  const timingSafe = crypto.timingSafeEqual(a, b);
+  const exact = (body.password || '') === (config.ADMIN_PASSWORD || '');
+  if (timingSafe && exact) {
     const now = Date.now();
     const token = crypto.randomBytes(20).toString('hex');
     state.ADMIN_TOKEN = { token, iat: now, exp: now + config.ADMIN_TOKEN_EXPIRY_MS };
@@ -49,6 +66,23 @@ function unauth(res) {
 export async function handleAdminRoutes(pathname, req, res, body, url) {
   if (!pathname.startsWith('/api/admin')) return false;
 
+  // Rate limiting global sur tous les endpoints admin (30 req/60s par IP)
+  const clientIPGlobal = getClientIP(req);
+  if (pathname !== '/api/admin/auth') {
+    const now = Date.now();
+    const key = 'global_' + clientIPGlobal;
+    const entry = state.loginAttempts.get(key);
+    if (entry && now <= entry.resetAt && entry.count >= 30) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Trop de requetes. Reessayez dans 60s.' }));
+    }
+    if (entry && now <= entry.resetAt) {
+      entry.count++;
+    } else {
+      state.loginAttempts.set(key, { count: 1, resetAt: now + 60000 });
+    }
+  }
+
   if (pathname === '/api/admin/auth') {
     if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
     const clientIP = getClientIP(req);
@@ -90,7 +124,7 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
   if (pathname === '/api/admin/ban') {
     if (!verifyToken(req)) return unauth(res);
     const data = JSON.parse(body || '{}');
-    if (!data.ip) { res.writeHead(400); return res.end(JSON.stringify({ error: 'IP required' })); }
+    if (!data.ip || !isValidIP(data.ip)) { res.writeHead(400); return res.end(JSON.stringify({ error: 'IP invalide ou manquante' })); }
     const bans = readJSON(config.BANS_FILE);
     if (!bans.find(b => b.ip === data.ip)) {
       bans.push({ ip: data.ip, reason: data.reason || '', date: new Date().toISOString() });
@@ -106,7 +140,7 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
   if (pathname === '/api/admin/unban') {
     if (!verifyToken(req)) return unauth(res);
     const data = JSON.parse(body || '{}');
-    if (!data.ip) { res.writeHead(400); return res.end(JSON.stringify({ error: 'IP required' })); }
+    if (!data.ip || !isValidIP(data.ip)) { res.writeHead(400); return res.end(JSON.stringify({ error: 'IP invalide ou manquante' })); }
     saveBans(readJSON(config.BANS_FILE).filter(b => b.ip !== data.ip));
     const whitelist = readJSON(config.WHITELIST_FILE);
     if (!whitelist.includes(data.ip)) {
@@ -129,7 +163,7 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
   if (pathname === '/api/admin/make-premium') {
     if (!verifyToken(req)) return unauth(res);
     const data = JSON.parse(body || '{}');
-    if (!data.ip) { res.writeHead(400); return res.end(JSON.stringify({ error: 'IP required' })); }
+    if (!data.ip || !isValidIP(data.ip)) { res.writeHead(400); return res.end(JSON.stringify({ error: 'IP invalide ou manquante' })); }
     const list = readJSON(config.PREMIUM_FILE);
     if (!list.find(p => p.ip === data.ip)) {
       list.push({ ip: data.ip, date: new Date().toISOString() });
@@ -144,7 +178,7 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
   if (pathname === '/api/admin/remove-premium') {
     if (!verifyToken(req)) return unauth(res);
     const data = JSON.parse(body || '{}');
-    if (!data.ip) { res.writeHead(400); return res.end(JSON.stringify({ error: 'IP required' })); }
+    if (!data.ip || !isValidIP(data.ip)) { res.writeHead(400); return res.end(JSON.stringify({ error: 'IP invalide ou manquante' })); }
     savePremium(readJSON(config.PREMIUM_FILE).filter(p => p.ip !== data.ip));
     await sendTelegram(`⚠️ <b>IP RETIRÉE DU PREMIUM (Panel Admin)</b>\n📍 <b>IP:</b> <code>${escapeHTML(data.ip)}</code>`);
     res.writeHead(200, { 'Content-Type': 'application/json' });

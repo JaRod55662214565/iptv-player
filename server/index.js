@@ -29,7 +29,10 @@ const routes = [
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', config.SITE_URL);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -40,10 +43,25 @@ const server = http.createServer(async (req, res) => {
   const pathname = url.pathname;
 
   let body = '';
-  await new Promise(resolve => {
-    req.on('data', chunk => body += chunk);
-    req.on('end', resolve);
+  let bodySize = 0;
+  const MAX_BODY = 1 * 1024 * 1024; // 1MB
+  const bodyOk = await new Promise(resolve => {
+    let aborted = false;
+    req.on('data', chunk => {
+      if (aborted) return;
+      bodySize += chunk.length;
+      if (bodySize > MAX_BODY) {
+        aborted = true;
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large' }));
+        resolve(false);
+        return;
+      }
+      body += chunk;
+    });
+    req.on('end', () => { if (!aborted) resolve(true); });
   });
+  if (!bodyOk) return;
 
   try {
     for (const handler of routes) {

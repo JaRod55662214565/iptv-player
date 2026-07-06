@@ -111,7 +111,7 @@ export async function sendTelegram(text, ip) {
         reply_markup,
       }),
     });
-    if (!resp.ok) console.error('[Telegram] Erreur:', await resp.text());
+    if (!resp.ok) console.error('[Telegram] Erreur envoi (details masques pour securite)');
     else console.log('[Telegram] Notification envoyee');
   } catch (e) {
     console.error('[Telegram] Erreur:', e.message);
@@ -138,7 +138,7 @@ export async function registerTelegramWebhook() {
       console.error('[Telegram] Webhook registration failed:', data);
     }
   } catch (e) {
-    console.error('[Telegram] Webhook registration error:', e.message);
+    console.error('[Telegram] Webhook registration error (token masque pour securite)');
   }
 
   try {
@@ -158,7 +158,7 @@ export async function registerTelegramWebhook() {
     });
     console.log('[Telegram] Bot commands registered');
   } catch (e) {
-    console.error('[Telegram] Bot commands registration error:', e.message);
+    console.error('[Telegram] Bot commands registration error (token masque pour securite)');
   }
 }
 
@@ -234,10 +234,10 @@ export async function handleTelegramWebhook(update) {
           isBanned ? '🚫 <b>Statut:</b> Banni' : isPremium ? '💎 <b>Statut:</b> Premium' : isWhitelisted ? '✅ <b>Statut:</b> Whitelisté' : '🟢 <b>Statut:</b> Normal',
           visit ? `📅 <b>Dernière visite:</b> ${new Date(visit.timestamp).toLocaleString()}` : '📅 <b>Dernière visite:</b> Aucune',
           visit && cityStr ? `🏙️ <b>Ville:</b> ${escapeHTML(cityStr)}` : null,
-          visit ? `🌍 <b>Pays:</b> ${visit.country || 'Inconnu'} ${visit.countryCode || ''}` : null,
+          visit ? `🌍 <b>Pays:</b> ${escapeHTML(visit.country || 'Inconnu')} ${escapeHTML(visit.countryCode || '')}` : null,
           visit ? `📡 <b>ISP:</b> ${visit.isp || 'Inconnu'}` : null,
           visit ? `📱 <b>Appareil:</b> ${visit.deviceType || 'Inconnu'} — ${visit.browser || '?'} ${visit.os || ''}` : null,
-          visit ? `📺 <b>Chaîne:</b> ${visit.channelName || 'Aucune'}` : null,
+          visit ? `📺 <b>Chaîne:</b> ${escapeHTML(visit.channelName || 'Aucune')}` : null,
           visit ? `🗺️ <a href="${mapsLink}">Voir sur Google Maps</a>` : null,
         ].filter(Boolean).join('\n');
 

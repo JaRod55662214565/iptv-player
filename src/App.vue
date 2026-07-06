@@ -54,6 +54,18 @@ const adsLoaded = ref(false);
 const isPremium = ref(false);
 let pushInterval = null;
 
+
+function isValidStreamUrl(url) {
+  if (!url || typeof url !== 'string') return true; // vide = ok
+  try {
+    const u = new URL(url);
+    const allowed = ['http:', 'https:', 'rtmp:', 'rtmps:'];
+    return allowed.includes(u.protocol);
+  } catch {
+    return false;
+  }
+}
+
 function loadAds() {
   if (isPremium.value) {
     console.log('[Ads] Premium, pas de publicite');
