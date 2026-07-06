@@ -14,24 +14,27 @@ Application Web TV IPTV avec détection IP, blocage VPN/proxy, notifications Tel
 ## Architecture
 
 ```
-server/
-├── index.js              # Point d'entrée, routage des handlers
-├── config.js             # Variables d'environnement, chemins
-├── state.js              # État mémoire partagé (bans, premiums, visites...)
-├── storage.js            # Lecture/écriture JSON avec lock
-├── validation.js         # Validation des ENV au démarrage
-├── lib/utils.js          # Utilitaires (parseUA, getClientIP, escapeHTML...)
-├── services/
-│   ├── telegram.js       # Notifications, webhook, callbacks inline
-│   └── geo.js            # GeoIP (ip-api.com), téléchargement blocklist
-├── routes/
-│   ├── admin.js          # Authentification, CRUD bans/premiums/visites
-│   ├── tracking.js       # Enregistrement visites, canal, captcha
-│   ├── stripe.js         # Session checkout + webhook Stripe
-│   ├── premium.js        # Vérification statut premium côté serveur
-│   └── ads.js            # Statistiques pubs, push ad
+webtv/
+├── server/               # Backend modulaire
+│   ├── index.js          # Point d'entrée, routage des handlers
+│   ├── config.js         # Variables d'environnement, chemins
+│   ├── state.js          # État mémoire partagé (bans, premiums, visites...)
+│   ├── storage.js        # Lecture/écriture JSON avec lock
+│   ├── validation.js     # Validation des ENV au démarrage
+│   ├── lib/utils.js      # Utilitaires (parseUA, getClientIP, escapeHTML...)
+│   ├── services/
+│   │   ├── telegram.js   # Notifications, webhook, callbacks inline
+│   │   └── geo.js        # GeoIP (ip-api.com), téléchargement blocklist
+│   └── routes/
+│       ├── admin.js      # Authentification, CRUD bans/premiums/visites
+│       ├── tracking.js   # Enregistrement visites, canal, captcha
+│       ├── stripe.js     # Session checkout + webhook Stripe
+│       ├── premium.js    # Vérification statut premium côté serveur
+│       └── ads.js        # Statistiques pubs, push ad
 ├── src/                  # Frontend Vue 3
-└── data/                 # Données runtime (gitignoré sauf .gitkeep)
+├── data/                 # Données runtime (gitignoré sauf .gitkeep)
+├── deploy/               # Déploiement (Nginx, VPS)
+└── docs/                 # Documentation
 ```
 
 ## Démarrage rapide
@@ -90,6 +93,19 @@ Servir `dist/` avec Nginx (voir `deploy/nginx.conf`).
 | POST | `/api/ads/trigger-push` | Déclencher un push ad manuellement |
 | POST | `/api/captcha/failed` | Notifier un échec captcha |
 | POST | `/api/telegram/channel` | Notifier un changement de chaîne |
+
+## Bot Telegram
+
+Commandes disponibles via le bot :
+
+| Commande | Description |
+|---|---|
+| `/ip [adresse]` | Infos IP (pays, ville, FAI) avec lien Google Maps |
+| `/list` | Liste les IPs connectées (admin only — IP whitelistée requise) |
+| `/stats` | Statistiques : visites, appareils, navigateurs, OS, pays, chaînes, bans, premiums, pubs |
+| `/admin` | Menu inline : Stats, List IPs, Push Ad, Panel Web, Refresh |
+
+Les notifications de visite sont envoyées automatiquement au chat configuré avec le pays, la ville et un lien Google Maps.
 
 ## Sécurité
 

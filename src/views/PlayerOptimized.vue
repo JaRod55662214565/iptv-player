@@ -6,7 +6,7 @@
     </div>
     
     <!-- PAYWALL OVERLAY -->
-    <div v-if="premiumChecked && !isPremium" class="paywall-overlay">
+    <div v-if="premiumChecked && !isPremium && !freeAccess" class="paywall-overlay">
       <div class="paywall-card">
         <div class="paywall-icon">💎</div>
         <h2 class="paywall-title">Accès Premium Requis</h2>
@@ -20,8 +20,10 @@
         <button class="paywall-btn" :disabled="checkoutLoading" @click="handleCheckout">
           {{ checkoutLoading ? 'Chargement...' : 'Débloquer l\'accès Premium' }}
         </button>
+        <button class="paywall-free-btn" @click="freeAccess = true">
+          Continuer gratuitement
+        </button>
         <p class="paywall-security">🛡️ Paiement sécurisé via Stripe</p>
-        
       </div>
     </div>
 
@@ -46,6 +48,7 @@ const props = defineProps(['value', 'track']);
 const isPremium = ref(false);
 const premiumChecked = ref(false);
 const checkoutLoading = ref(false);
+const freeAccess = ref(false);
 
 onMounted(async () => {
   try {
@@ -335,6 +338,25 @@ const {
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+}
+
+.paywall-free-btn {
+  width: 100%;
+  padding: 0.8rem;
+  margin-top: 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s;
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.4);
   }
 }
 

@@ -2,7 +2,7 @@
 # Génère un certificat SSL autosigné (fallback si Let's Encrypt échoue)
 set -e
 
-DOMAIN="${1:-1tr4ck.dpdns.org}"
+DOMAIN="${1:-example.com}"
 OUT_DIR="/etc/ssl/webtv"
 
 mkdir -p "$OUT_DIR"

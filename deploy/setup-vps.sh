@@ -7,7 +7,7 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-DOMAIN="${1:-1tr4ck.dpdns.org}"
+DOMAIN="${1:-example.com}"
 TELEGRAM_BOT_TOKEN="${2:-$TELEGRAM_BOT_TOKEN}"
 TELEGRAM_CHAT_ID="${3:-$TELEGRAM_CHAT_ID}"
 

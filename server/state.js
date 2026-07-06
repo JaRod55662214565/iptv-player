@@ -39,7 +39,7 @@ function saveWhitelist(list) {
   loadWhitelist();
 }
 
-function loadPremium() {
+export function loadPremium() {
   state.PREMIUM_LOOKUP.clear();
   const list = readJSON(config.PREMIUM_FILE);
   for (const p of list) state.PREMIUM_LOOKUP.add(p.ip);
