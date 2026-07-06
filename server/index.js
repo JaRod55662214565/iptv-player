@@ -10,6 +10,7 @@ import { handleTrackingRoutes } from './routes/tracking.js';
 import { handleStripeRoutes } from './routes/stripe.js';
 import { handlePremiumRoutes } from './routes/premium.js';
 import { handleAdsRoutes } from './routes/ads.js';
+import { handleFavoritesRoutes } from './routes/favorites.js';
 
 runBootValidation();
 
@@ -22,6 +23,7 @@ const routes = [
   handleStripeRoutes,
   handlePremiumRoutes,
   handleAdsRoutes,
+  handleFavoritesRoutes,
 ];
 
 const server = http.createServer(async (req, res) => {

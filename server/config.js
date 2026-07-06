@@ -25,6 +25,7 @@ export const config = {
   VISITS_FILE: path.join(DATA_DIR, 'visits.json'),
   BLOCKLIST_FILE: path.join(DATA_DIR, 'vpn-datacenter.txt'),
   ADS_FILE: path.join(DATA_DIR, 'ads.json'),
+  FAVORITES_FILE: path.join(DATA_DIR, 'favorites.json'),
 };
 
 export function getStripe() {

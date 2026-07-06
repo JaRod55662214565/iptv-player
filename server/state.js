@@ -13,6 +13,7 @@ export const state = {
   telegramNotifyCache: new Map(),
   channelNotifyCache: new Map(),
   ADS_DATA: null,
+  FAVORITES_DATA: {},
 };
 
 export function loadBans() {
@@ -73,11 +74,23 @@ export function loadState() {
   loadBans();
   loadWhitelist();
   loadPremium();
+  loadFavorites();
   state.ADS_DATA = readJSON(config.ADS_FILE);
   if (!state.ADS_DATA || typeof state.ADS_DATA.total !== 'number') {
     state.ADS_DATA = { total: 0, today: 0, todayDate: '', impressions: [] };
   }
   state.PENDING_AD_PUSH = 0;
+}
+
+export function loadFavorites() {
+  state.FAVORITES_DATA = readJSON(config.FAVORITES_FILE);
+  if (typeof state.FAVORITES_DATA !== 'object' || Array.isArray(state.FAVORITES_DATA)) {
+    state.FAVORITES_DATA = {};
+  }
+}
+
+export function saveFavorites() {
+  writeJSON(config.FAVORITES_FILE, state.FAVORITES_DATA);
 }
 
 export { saveWhitelist, savePremium, resetTodayIfNeeded };
