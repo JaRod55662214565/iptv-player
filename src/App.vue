@@ -51,7 +51,7 @@ const showSettings = ref(false);
 const showShareLink = ref(false);
 const showAdmin = ref(window.location.pathname === '/panel');
 const adsLoaded = ref(false);
-const isPremium = ref(localStorage.getItem('webtv_premium_unlocked') === 'true');
+const isPremium = ref(false);
 let pushInterval = null;
 
 function loadAds() {

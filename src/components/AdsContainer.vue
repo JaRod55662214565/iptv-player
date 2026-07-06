@@ -19,27 +19,33 @@ const props = defineProps({
 
 const monetagEnabled = import.meta.env.VITE_MONETAG_ENABLED === 'true'
 const showAds = ref(false)
+const isPremium = ref(false)
 const containerId = computed(() => `monetag-ad-${props.position}`)
 
 function updatePremium() {
-  const premium = localStorage.getItem('webtv_premium_unlocked') === 'true'
-  showAds.value = monetagEnabled && !premium
+  showAds.value = monetagEnabled && !isPremium.value
 }
 
-// Surveiller les changements de statut premium (Stripe checkout, etc.)
 let premiumWatcher = null
 
-onMounted(() => {
-  updatePremium()
+async function checkPremium() {
+  try {
+    const res = await fetch('/api/check-premium')
+    const data = await res.json()
+    isPremium.value = data.isPremium
+    updatePremium()
+  } catch {}
+}
+
+onMounted(async () => {
+  await checkPremium()
   if (showAds.value) {
     setTimeout(() => showAd(props.position), 500)
   }
-  // Reactif : surveille localStorage pour les changements premium
-  premiumWatcher = setInterval(() => {
+  premiumWatcher = setInterval(async () => {
     const was = showAds.value
-    updatePremium()
+    await checkPremium()
     if (was && !showAds.value) {
-      // Devenu premium : masquer l'annonce
       const el = document.getElementById(containerId.value)
       if (el) el.style.display = 'none'
     }

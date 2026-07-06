@@ -1,47 +1,107 @@
 # Web TV — IPTV Player
 
-Application Web TV IPTV avec détection IP, protection VPN, notifications Telegram, intégration Stripe Checkout (Paywall) et panneau d'administration.
+Application Web TV IPTV avec détection IP, blocage VPN/proxy, notifications Telegram, intégration Stripe (paywall premium), panneau d'administration et architecture backend modulaire.
 
-## Fonctionnalités
+## Stack
 
-- **Lecture IPTV/Radio :** Support des flux HLS (M3U8), MP4, WebM, TS, DASH avec Video.js.
-- **Paywall Premium (Stripe Checkout) :**
-  - Accès Premium à vie pour **4.99 €** unique.
-  - Option d'accès gratuit alternatif avec publicité (`Continuer gratuitement avec publicités`) discrètement placée.
-- **Sécurisation Anti-Hack :** Validation stricte de l'IP côté serveur sur chaque connexion. Suppression automatique de toute modification frauduleuse de clé locale dans le navigateur.
-- **Gestion Manuelle Premium :**
-  - Directement depuis le **Panel Admin** (nouvel onglet Premiums, ou bouton rapide dans Visites).
-  - En un clic via **Telegram** grâce à des boutons interactifs en ligne sur les messages de notifications.
-- **Limitation du Spam & Anti-Flood :**
-  - Cache en mémoire des notifications Telegram (max 1 alerte toutes les 30 minutes par IP).
-  - Pas de notification Telegram pour les utilisateurs déjà Premium.
-- **Publicités maîtrisées :** Injection du tag de pub popunder (`quge5.com`) uniquement après validation physique du captcha, limité à **une fois toutes les 24 heures** par visiteur.
-- **Détection géographique & VPN :**
-  - Recherche géographique via ip-api.com côté serveur.
-  - Blocage automatique des serveurs de datacenters / bots / proxys (blocklist de 65k+ plages CIDR) avec redirection automatique vers Wikipédia (les utilisateurs Premium sont exclus de ce blocage).
-- **Accès Sécurisé Admin :** Captcha mathématique obligatoire sur l'écran d'authentification admin `/panel` avant de saisir le mot de passe.
+- **Frontend** : Vue 3 + Vite 4 + Pinia + Video.js
+- **Backend** : Node.js HTTP natif (zéro framework), modularisé en `server/`
+- **Paiement** : Stripe Checkout (4,99 € accès à vie)
+- **Notifications** : Bot Telegram avec boutons inline (unban, premium, push ad)
+- **Anti-abus** : Captcha mathématique, blocage VPN/datacenter (65k+ plages CIDR), rate-limiting
+- **Stockage** : Fichiers JSON dans `data/` (visites, bans, whitelist, premiums)
 
-## Déploiement
+## Architecture
 
-1. Copier `.env.example` vers `.env` et remplir les tokens (Stripe API, Telegram Bot, Admin Password)
-2. `npm install`
-3. `npm run build`
-4. Lancer `server.js` (port 3001)
-5. Servir `dist/` avec Nginx (voir `deploy/nginx.conf`)
+```
+server/
+├── index.js              # Point d'entrée, routage des handlers
+├── config.js             # Variables d'environnement, chemins
+├── state.js              # État mémoire partagé (bans, premiums, visites...)
+├── storage.js            # Lecture/écriture JSON avec lock
+├── validation.js         # Validation des ENV au démarrage
+├── lib/utils.js          # Utilitaires (parseUA, getClientIP, escapeHTML...)
+├── services/
+│   ├── telegram.js       # Notifications, webhook, callbacks inline
+│   └── geo.js            # GeoIP (ip-api.com), téléchargement blocklist
+├── routes/
+│   ├── admin.js          # Authentification, CRUD bans/premiums/visites
+│   ├── tracking.js       # Enregistrement visites, canal, captcha
+│   ├── stripe.js         # Session checkout + webhook Stripe
+│   ├── premium.js        # Vérification statut premium côté serveur
+│   └── ads.js            # Statistiques pubs, push ad
+├── src/                  # Frontend Vue 3
+└── data/                 # Données runtime (gitignoré sauf .gitkeep)
+```
 
-## Routes d'API Administration
+## Démarrage rapide
 
-- `POST /api/admin/auth` — `{"password":"..."}` → Connexion & Token JWT
-- `GET /api/admin/visits` — Liste des dernières visites
-- `GET /api/admin/bans` — Liste des IPs bannies
-- `POST /api/admin/ban` — `{"ip":"...", "reason":"..."}` → Bannir une IP
-- `POST /api/admin/unban` — `{"ip":"..."}` → Débannir une IP
-- `GET /api/admin/premiums` — Liste des IPs Premium actives
-- `POST /api/admin/make-premium` — `{"ip":"..."}` → Accorder l'accès Premium
-- `POST /api/admin/remove-premium` — `{"ip":"..."}` → Retirer l'accès Premium
+```bash
+cp .env.example .env        # Remplir les tokens
+npm install
+npm run build               # Build frontend
+npm start                   # Lance le serveur (port 3001)
+```
 
-## Routes d'API Publiques
+Servir `dist/` avec Nginx (voir `deploy/nginx.conf`).
 
-- `POST /api/telegram` — Enregistre la visite et notifie Telegram si nécessaire
-- `POST /api/telegram-webhook` — Gère les callbacks boutons interactifs (`unban_[IP]`, `premium_[IP]`)
-- `POST /api/stripe/checkout-session` — Initialise la session de paiement à 4.99 €
+## Variables d'environnement
+
+| Variable | Obligatoire | Description |
+|---|---|---|
+| `TELEGRAM_BOT_TOKEN` | Oui | Token du bot Telegram (créer via @BotFather) |
+| `TELEGRAM_CHAT_ID` | Oui | Chat ID pour les notifications |
+| `ADMIN_PASSWORD` | Oui | Mot de passe du panneau admin `/panel` |
+| `STRIPE_SECRET_KEY` | Oui | Clé secrète Stripe (`sk_test_*` ou `sk_live_*`) |
+| `STRIPE_WEBHOOK_SECRET` | Non (recommandé) | Secret du webhook Stripe (`whsec_*`) |
+| `SITE_URL` | Oui | URL publique du site |
+| `WEBHOOK_URL` | Non | URL pour le webhook Telegram (par défaut = `SITE_URL`) |
+| `TELEGRAM_WEBHOOK_SECRET` | Non | Sécurisation du webhook Telegram (32+ caractères) |
+| Voir `.env.example` pour les variables optionnelles (Monetag, Larafly, Supabase...)
+
+## Routes API
+
+### Admin (authentification par token avec expiration 24h)
+
+| Méthode | Route | Description |
+|---|---|---|
+| POST | `/api/admin/auth` | Connexion → retourne un token |
+| POST | `/api/admin/logout` | Invalidation du token |
+| GET | `/api/admin/visits` | Liste des dernières visites |
+| GET | `/api/admin/bans` | Liste des IPs bannies |
+| POST | `/api/admin/ban` | Bannir une IP |
+| POST | `/api/admin/unban` | Débannir une IP (ajoute à la whitelist) |
+| GET | `/api/admin/premiums` | Liste des IPs premium |
+| POST | `/api/admin/make-premium` | Ajouter une IP premium |
+| POST | `/api/admin/remove-premium` | Retirer une IP premium |
+| GET | `/api/admin/ads-stats` | Statistiques des publicités |
+
+### Publiques
+
+| Méthode | Route | Description |
+|---|---|---|
+| POST | `/` ou `/api/telegram` | Enregistre une visite, retourne le statut IP |
+| GET | `/api/check-premium` | Vérifie si l'IP du client est premium |
+| POST | `/api/stripe/checkout-session` | Crée une session Stripe à 4,99 € |
+| POST | `/api/stripe/webhook` | Webhook Stripe (confirmation paiement) |
+| POST | `/api/telegram-webhook` | Webhook Telegram (messages, callbacks) |
+| POST | `/api/ads/shown` | Enregistre une impression publicitaire |
+| GET | `/api/ads/push-status` | Statut du push ad en cours |
+| POST | `/api/ads/trigger-push` | Déclencher un push ad manuellement |
+| POST | `/api/captcha/failed` | Notifier un échec captcha |
+| POST | `/api/telegram/channel` | Notifier un changement de chaîne |
+
+## Sécurité
+
+- **Token admin** : généré aléatoirement (20 bytes hex), stocké en mémoire avec expiration 24h + endpoint logout
+- **CORS** : restreint au `SITE_URL` configuré
+- **Rate-limiting** : 5 tentatives de connexion admin par minute par IP
+- **Premium** : vérifié côté serveur par IP — aucun contournement client possible
+- **Env vars** : validées au démarrage, arrêt immédiat si une variable critique manque
+- **Webhook Telegram** : sécurisé par secret token optionnel
+- **Webhook Stripe** : vérification de la signature
+- **Anti-bot** : blocage VPN/proxy/datacenter par blocklist CIDR + ip-api.com
+
+## Licence
+
+MIT

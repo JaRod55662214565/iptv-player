@@ -66,8 +66,8 @@ On Vercel Settings → Environment Variables:
 
 ### Required: Supabase
 
-- [ ] VITE_SUPABASE_URL = `https://ubvefzwleuvsohnboktt.supabase.co`
-- [ ] VITE_SUPABASE_ANON_KEY = `sb_publishable_gipi4cIKwUXvvqtF3ujpwA_bRQ7DbH9`
+- [ ] VITE_SUPABASE_URL = `https://votre-projet.supabase.co`
+- [ ] VITE_SUPABASE_ANON_KEY = `votre-cle-anon-supabase`
 
 ### Required: Custom Analytics
 

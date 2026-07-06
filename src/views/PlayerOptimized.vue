@@ -6,7 +6,7 @@
     </div>
     
     <!-- PAYWALL OVERLAY -->
-    <div v-if="!isPremium" class="paywall-overlay">
+    <div v-if="premiumChecked && !isPremium" class="paywall-overlay">
       <div class="paywall-card">
         <div class="paywall-icon">💎</div>
         <h2 class="paywall-title">Accès Premium Requis</h2>
@@ -22,11 +22,6 @@
         </button>
         <p class="paywall-security">🛡️ Paiement sécurisé via Stripe</p>
         
-        <!-- Option d'accès gratuit discrète -->
-        <a href="#" class="paywall-free-link" @click.prevent="isPremium = true">
-          Continuer gratuitement avec publicités
-        </a>
-
       </div>
     </div>
 
@@ -43,13 +38,23 @@
 <script setup>
 import { useI18n } from '../i18n/index.js';
 import { usePlayer } from '../composables/usePlayer';
-import { ref, toRef } from 'vue';
+import { ref, toRef, onMounted } from 'vue';
 
 const { locale } = useI18n();
 const props = defineProps(['value', 'track']);
 
-const isPremium = ref(localStorage.getItem('webtv_premium_unlocked') === 'true');
+const isPremium = ref(false);
+const premiumChecked = ref(false);
 const checkoutLoading = ref(false);
+
+onMounted(async () => {
+  try {
+    const res = await fetch('/api/check-premium');
+    const data = await res.json();
+    isPremium.value = data.isPremium;
+  } catch {}
+  premiumChecked.value = true;
+});
 
 async function handleCheckout() {
   checkoutLoading.value = true;
@@ -339,16 +344,5 @@ const {
   margin: 1rem 0 0.8rem;
 }
 
-.paywall-free-link {
-  display: inline-block;
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.35);
-  text-decoration: none;
-  margin-top: 0.8rem;
-  transition: color 0.2s;
-  &:hover {
-    color: rgba(255, 255, 255, 0.8);
-    text-decoration: underline;
-  }
-}
+
 </style>

@@ -3,7 +3,7 @@
 ## Status: ✅ CONFIGURED AND TESTED
 
 Date: 2024-01-15
-Supabase URL: https://ubvefzwleuvsohnboktt.supabase.co
+Supabase URL: https://votre-projet.supabase.co
 Connection: ✓ Verified
 
 ---
@@ -14,14 +14,14 @@ Connection: ✓ Verified
 
 **In .env.example (committed):**
 ```
-VITE_SUPABASE_URL=https://ubvefzwleuvsohnboktt.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_gipi4cIKwUXvvqtF3ujpwA_bRQ7DbH9
+VITE_SUPABASE_URL=https://votre-projet.supabase.co
+VITE_SUPABASE_ANON_KEY=votre-cle-anon-supabase
 ```
 
 **In .env.local (local development only - not committed):**
 ```
-VITE_SUPABASE_URL=https://ubvefzwleuvsohnboktt.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_gipi4cIKwUXvvqtF3ujpwA_bRQ7DbH9
+VITE_SUPABASE_URL=https://votre-projet.supabase.co
+VITE_SUPABASE_ANON_KEY=votre-cle-anon-supabase
 VITE_IP_API_ENABLED=true
 VITE_ANTI_BOT_ENABLED=true
 VITE_TRACKING_ENABLED=true
