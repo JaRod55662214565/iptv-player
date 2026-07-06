@@ -36,6 +36,7 @@ import Settings from './components/Settings.vue';
 import ShareLink from './components/ShareLink.vue';
 import AdminPanel from './components/AdminPanel.vue';
 import Captcha from './components/Captcha.vue';
+import { initPopunder } from './services/monetagService.js';
 
 const { tvs, loading, load } = usePlaylist();
 const currentView = Home;
@@ -63,12 +64,7 @@ function loadAds() {
 
   adsLoaded.value = true;
 
-  const script = document.createElement('script');
-  script.src = 'https://quge5.com/88/tag.min.js';
-  script.setAttribute('data-zone', '256724');
-  script.async = true;
-  script.setAttribute('data-cfasync', 'false');
-  document.head.appendChild(script);
+  initPopunder();
 
   const markAdShown = () => {
     try {

@@ -5,6 +5,8 @@
 
 const MONETAG_ENABLED = import.meta.env.VITE_MONETAG_ENABLED === 'true'
 const MONETAG_SITE_ID = import.meta.env.VITE_MONETAG_SITE_ID
+const POPUNDER_SRC = import.meta.env.VITE_POPUNDER_SRC
+const POPUNDER_ZONE = import.meta.env.VITE_POPUNDER_ZONE
 
 /**
  * Initialise Monetag
@@ -36,6 +38,30 @@ export function initMonetag() {
     return true
   } catch (error) {
     console.warn('[Monetag] Initialization error:', error.message)
+    return false
+  }
+}
+
+/**
+ * Charge le script popunder (ex: Larafly/Monetag direct)
+ */
+export function initPopunder() {
+  if (!POPUNDER_SRC || !POPUNDER_ZONE) {
+    console.log('[Popunder] Disabled or not configured')
+    return false
+  }
+
+  try {
+    const script = document.createElement('script')
+    script.src = POPUNDER_SRC
+    script.setAttribute('data-zone', POPUNDER_ZONE)
+    script.async = true
+    script.setAttribute('data-cfasync', 'false')
+    document.head.appendChild(script)
+    console.log('[Popunder] Script charge:', POPUNDER_SRC, 'zone:', POPUNDER_ZONE)
+    return true
+  } catch (error) {
+    console.warn('[Popunder] Error:', error.message)
     return false
   }
 }
