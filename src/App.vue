@@ -53,7 +53,6 @@ const adsLoaded = ref(false);
 function loadAds() {
   if (adsLoaded.value) return;
 
-  // Limitation : pas de pub si déjà affichée ces dernières 24 heures
   try {
     const lastAdTime = localStorage.getItem('webtv_last_ad_time');
     if (lastAdTime && (Date.now() - parseInt(lastAdTime, 10) < 24 * 60 * 60 * 1000)) {
@@ -71,7 +70,6 @@ function loadAds() {
   script.setAttribute('data-cfasync', 'false');
   document.head.appendChild(script);
 
-  // Enregistrer l'affichage au premier clic
   const markAdShown = () => {
     try {
       localStorage.setItem('webtv_last_ad_time', Date.now().toString());
@@ -79,6 +77,15 @@ function loadAds() {
     window.removeEventListener('click', markAdShown, true);
   };
   window.addEventListener('click', markAdShown, true);
+
+  fetch('/api/ads/shown', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      channelName: caption.value || 'Page d\'accueil',
+      streamUrl: url.value || '',
+    }),
+  }).catch(() => {});
 }
 
 function selectFirst() {
@@ -181,7 +188,7 @@ onMounted(async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
-        siteUrl: 'https://1tr4ck.dpdns.org',
+        siteUrl: window.location.origin,
         channelName: caption.value || 'Page d\'accueil',
         streamUrl: url.value || '',
       }),

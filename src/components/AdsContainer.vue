@@ -24,6 +24,11 @@ onMounted(() => {
   if (showAds.value) {
     setTimeout(() => {
       refreshMonetag()
+      fetch('/api/ads/shown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelName: '', streamUrl: '' }),
+      }).catch(() => {})
     }, 500)
   }
 })

@@ -69,8 +69,8 @@ npm run dev
 ### 🔐 Obligatoires (4):
 1. **VITE_SUPABASE_URL** - Supabase
 2. **VITE_SUPABASE_ANON_KEY** - Supabase
-3. **VITE_TELEGRAM_BOT_TOKEN** - Telegram @BotFather
-4. **VITE_TELEGRAM_CHAT_ID** - ID du groupe Telegram
+3. **TELEGRAM_BOT_TOKEN** - Telegram @BotFather
+4. **TELEGRAM_CHAT_ID** - ID du groupe Telegram
 
 ### 💰 Recommandées (2):
 5. **VITE_MONETAG_SITE_ID** - Site ID Monetag

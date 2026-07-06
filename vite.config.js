@@ -15,13 +15,9 @@ export default defineConfig({
 
   server: {
     host: '0.0.0.0',
-    allowedHosts: ['localhost', '127.0.0.1'],
+    allowedHosts: ['localhost', '127.0.0.1', '.dpdns.org'],
     proxy: {
-      '/api/telegram': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-      '/api/admin': {
+      '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
       },

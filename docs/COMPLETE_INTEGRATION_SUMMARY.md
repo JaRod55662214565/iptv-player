@@ -174,12 +174,12 @@ Sinon
    ├─ Format: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
    └─ Obligatoire pour: Authentification
 
-3. VITE_TELEGRAM_BOT_TOKEN
+3. TELEGRAM_BOT_TOKEN
    ├─ Source: @BotFather sur Telegram → /newbot
    ├─ Format: 123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg
    └─ Obligatoire pour: Notifications Telegram
 
-4. VITE_TELEGRAM_CHAT_ID
+4. TELEGRAM_CHAT_ID
    ├─ Source: https://api.telegram.org/bot{TOKEN}/getUpdates
    ├─ Format: -987654321 (négatif pour les groupes)
    └─ Obligatoire pour: Envoyer messages Telegram

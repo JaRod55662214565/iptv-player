@@ -31,7 +31,7 @@ Suivez cette checklist dans l'ordre. Tout doit être ✅ pour que l'app fonction
   - [ ] Nom du bot: `Web IPTV Notifications` (ou votre nom)
   - [ ] Username: `web_iptv_notif_bot` (doit finir par `_bot`)
 - [ ] Copier le **TOKEN** fourni par BotFather
-  - [ ] `VITE_TELEGRAM_BOT_TOKEN=123456...`
+  - [ ] `TELEGRAM_BOT_TOKEN=123456...`
 
 ### 2.2 - Créer le groupe Telegram
 - [ ] Ouvrir Telegram
@@ -53,7 +53,7 @@ Suivez cette checklist dans l'ordre. Tout doit être ✅ pour que l'app fonction
   }
   ```
 - [ ] Copier le **chat.id** (le négatif)
-  - [ ] `VITE_TELEGRAM_CHAT_ID=-987654321`
+  - [ ] `TELEGRAM_CHAT_ID=-987654321`
 
 ### 2.4 - Tester le Bot
 - [ ] Ouvrir ce lien (remplacer les valeurs):
@@ -95,8 +95,8 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # Telegram Bot
-VITE_TELEGRAM_BOT_TOKEN=123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg
-VITE_TELEGRAM_CHAT_ID=-987654321
+TELEGRAM_BOT_TOKEN=123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg
+TELEGRAM_CHAT_ID=-987654321
 
 # Monetag
 VITE_MONETAG_SITE_ID=a1b2c3d4e5f6g7h8i9j0k
@@ -123,8 +123,8 @@ VITE_TRACKING_ENABLED=true
 - [ ] Ajouter chaque variable:
   - [ ] `VITE_SUPABASE_URL` = votre URL Supabase
   - [ ] `VITE_SUPABASE_ANON_KEY` = votre clé anon
-  - [ ] `VITE_TELEGRAM_BOT_TOKEN` = votre token bot
-  - [ ] `VITE_TELEGRAM_CHAT_ID` = votre chat ID
+  - [ ] `TELEGRAM_BOT_TOKEN` = votre token bot
+  - [ ] `TELEGRAM_CHAT_ID` = votre chat ID
   - [ ] `VITE_MONETAG_SITE_ID` = votre Site ID Monetag
   - [ ] `VITE_MONETAG_ENABLED` = `true`
   - [ ] `VITE_IP_API_ENABLED` = `true`

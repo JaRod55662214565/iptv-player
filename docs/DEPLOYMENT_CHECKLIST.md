@@ -84,8 +84,8 @@ On Vercel Settings → Environment Variables:
 
 ### Optional: Notifications & Security
 
-- [ ] VITE_TELEGRAM_BOT_TOKEN = (if you have)
-- [ ] VITE_TELEGRAM_CHAT_ID = (if you have)
+- [ ] TELEGRAM_BOT_TOKEN = (if you have)
+- [ ] TELEGRAM_CHAT_ID = (if you have)
 - [ ] VITE_IP_API_ENABLED = (true/false)
 - [ ] VITE_ANTI_BOT_ENABLED = (true/false)
 - [ ] VITE_BLOCK_VPN = (true/false)

@@ -10,8 +10,8 @@ Toutes les clés API nécessaires pour votre lecteur IPTV avec **Monetag** + **L
 |---|----------|---------|----------|------------|
 | 1 | `VITE_SUPABASE_URL` | Supabase | ⭐⭐⭐ | ✅ OUI |
 | 2 | `VITE_SUPABASE_ANON_KEY` | Supabase | ⭐⭐⭐ | ✅ OUI |
-| 3 | `VITE_TELEGRAM_BOT_TOKEN` | Telegram | ⭐⭐⭐ | ✅ OUI |
-| 4 | `VITE_TELEGRAM_CHAT_ID` | Telegram | ⭐⭐⭐ | ✅ OUI |
+| 3 | `TELEGRAM_BOT_TOKEN` | Telegram | ⭐⭐⭐ | ✅ OUI |
+| 4 | `TELEGRAM_CHAT_ID` | Telegram | ⭐⭐⭐ | ✅ OUI |
 | 5 | `VITE_MONETAG_SITE_ID` | Monetag | ⭐⭐ | ⚠️ Optionnel |
 | 6 | `VITE_MONETAG_ENABLED` | Monetag | ⭐⭐ | ⚠️ Optionnel |
 | 7 | `VITE_LARAFLY_DOMAIN` | Larafly | ⭐⭐ | ⚠️ Optionnel |
@@ -105,7 +105,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
    Use this token to access the HTTP API:
    123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg
    ```
-6. Copier le TOKEN → `VITE_TELEGRAM_BOT_TOKEN`
+6. Copier le TOKEN → `TELEGRAM_BOT_TOKEN`
 
 #### Étape 2: Créer un groupe Telegram privé
 1. Ouvrir Telegram
@@ -140,12 +140,12 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
      ]
    }
    ```
-4. Copier le `chat.id` (négatif) → `VITE_TELEGRAM_CHAT_ID`
+4. Copier le `chat.id` (négatif) → `TELEGRAM_CHAT_ID`
 
 ### Exemple de variables:
 ```
-VITE_TELEGRAM_BOT_TOKEN=123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg
-VITE_TELEGRAM_CHAT_ID=-987654321
+TELEGRAM_BOT_TOKEN=123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg
+TELEGRAM_CHAT_ID=-987654321
 ```
 
 ### Notifications que vous recevrez:
@@ -318,8 +318,8 @@ Créer un fichier `.env.local` à la racine du projet:
 ```
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
-VITE_TELEGRAM_BOT_TOKEN=...
-VITE_TELEGRAM_CHAT_ID=...
+TELEGRAM_BOT_TOKEN=...
+TELEGRAM_CHAT_ID=...
 VITE_MONETAG_SITE_ID=...
 VITE_MONETAG_ENABLED=true
 VITE_LARAFLY_DOMAIN=3nbf4.com
@@ -374,7 +374,7 @@ VITE_TRACKING_ENABLED=true
 
 ❌ **Ce qui ne doit JAMAIS être partagé**:
 - `VITE_SUPABASE_ANON_KEY`
-- `VITE_TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_BOT_TOKEN`
 - Mots de passe
 - Tokens privés
 
@@ -402,8 +402,8 @@ git push origin main
 ## 🆘 TROUBLESHOOTING
 
 ### Je ne reçois pas de notifications Telegram
-- ✅ Vérifier que `VITE_TELEGRAM_BOT_TOKEN` est correct
-- ✅ Vérifier que `VITE_TELEGRAM_CHAT_ID` est correct (négatif !)
+- ✅ Vérifier que `TELEGRAM_BOT_TOKEN` est correct
+- ✅ Vérifier que `TELEGRAM_CHAT_ID` est correct (négatif !)
 - ✅ Vérifier que le bot est membre du groupe
 - ✅ Vérifier que `VITE_TRACKING_ENABLED=true`
 - ✅ Ouvrir console navigateur (F12) → chercher `[Tracking]` logs

@@ -11,6 +11,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const SITE_URL = process.env.SITE_URL || 'https://localhost';
+const WEBHOOK_URL = process.env.WEBHOOK_URL || '';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 if (!ADMIN_PASSWORD) {
   console.error('CRITICAL ERROR: ADMIN_PASSWORD environment variable is not defined!');
@@ -26,6 +28,7 @@ const PREMIUM_FILE = path.join(DATA_DIR, 'premium.json');
 const VISITS_FILE = path.join(DATA_DIR, 'visits.json');
 const BLOCKLIST_FILE = path.join(DATA_DIR, 'vpn-datacenter.txt');
 const BLOCKLIST_URL = 'https://raw.githubusercontent.com/josephrocca/is-vpn/main/vpn-or-datacenter-ipv4-ranges.txt';
+const ADS_FILE = path.join(DATA_DIR, 'ads.json');
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -90,6 +93,25 @@ function savePremium(list) {
 }
 loadPremium();
 
+let ADS_DATA = readJSON(ADS_FILE);
+if (!ADS_DATA || typeof ADS_DATA.total !== 'number') {
+  ADS_DATA = { total: 0, today: 0, todayDate: '', impressions: [] };
+}
+function saveAds() {
+  writeJSON(ADS_FILE, ADS_DATA);
+}
+
+function getTodayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+function resetTodayIfNeeded() {
+  const today = getTodayStr();
+  if (ADS_DATA.todayDate !== today) {
+    ADS_DATA.today = 0;
+    ADS_DATA.todayDate = today;
+    saveAds();
+  }
+}
 
 function ipToInt(ip) {
   try { return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct, 10), 0) >>> 0; }
@@ -116,6 +138,28 @@ function isInVPNRange(ip) {
 }
 function isBanned(ip) {
   return BANS_LOOKUP.has(ip);
+}
+
+async function registerTelegramWebhook() {
+  if (!BOT_TOKEN || !WEBHOOK_URL) {
+    console.log('[Telegram] Webhook registration skipped (WEBHOOK_URL not set)');
+    return;
+  }
+  const webhookUrl = `${WEBHOOK_URL}/api/telegram-webhook`;
+  try {
+    const resp = await fetch(
+      `https://api.telegram.org/bot${BOT_TOKEN}/setWebhook?url=${encodeURIComponent(webhookUrl)}`,
+      { signal: AbortSignal.timeout(10000) }
+    );
+    const data = await resp.json();
+    if (data.ok) {
+      console.log('[Telegram] Webhook registered:', webhookUrl);
+    } else {
+      console.error('[Telegram] Webhook registration failed:', data);
+    }
+  } catch (e) {
+    console.error('[Telegram] Webhook registration error:', e.message);
+  }
 }
 
 async function downloadBlocklist() {
@@ -220,7 +264,7 @@ async function sendTelegram(text, ip) {
       row.push({ text: '🔓 Debloquer', callback_data: `unban_${ip}` });
       row.push({ text: '💎 Premium', callback_data: `premium_${ip}` });
     }
-    row.push({ text: '🔐 Panel', url: 'https://1tr4ck.dpdns.org/panel' });
+    row.push({ text: '🔐 Panel', url: `${SITE_URL}/panel` });
 
     reply_markup.inline_keyboard[0] = row;
 
@@ -280,7 +324,7 @@ async function handleVisit(req, body) {
     isProxy: !isWhitelisted && ipInfo.isProxy,
     isDatacenter,
     isBanned: isBannedIP,
-    siteUrl: body.siteUrl || 'https://1tr4ck.dpdns.org',
+    siteUrl: body.siteUrl || SITE_URL,
     channelName: body.channelName || '',
     streamUrl: body.streamUrl || '',
     timestamp: new Date().toISOString(),
@@ -497,7 +541,7 @@ const server = http.createServer(async (req, res) => {
     } else if (pathname === '/api/stripe/checkout-session') {
       if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
       const data = JSON.parse(body || '{}');
-      const origin = data.origin || 'https://1tr4ck.dpdns.org';
+      const origin = data.origin || SITE_URL;
       try {
         const session = await stripe.checkout.sessions.create({
           payment_method_types: ['card'],
@@ -523,6 +567,45 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));
       }
+
+    } else if (pathname === '/api/ads/shown') {
+      if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+      const adsData = JSON.parse(body || '{}');
+      resetTodayIfNeeded();
+      const clientIP = getClientIP(req);
+      ADS_DATA.total++;
+      ADS_DATA.today++;
+      const entry = {
+        ip: clientIP,
+        channelName: adsData.channelName || '',
+        streamUrl: adsData.streamUrl || '',
+        timestamp: new Date().toISOString(),
+      };
+      ADS_DATA.impressions.unshift(entry);
+      if (ADS_DATA.impressions.length > 500) ADS_DATA.impressions.length = 500;
+      saveAds();
+      const msg = [
+        `📢 <b>PUBLICITÉ DIFFUSÉE</b>`,
+        `📍 <b>IP:</b> <code>${escapeHTML(clientIP)}</code>`,
+        adsData.channelName ? `📺 <b>Chaîne:</b> ${escapeHTML(adsData.channelName)}` : null,
+        adsData.streamUrl ? `🔗 <b>Flux:</b> <code>${escapeHTML(adsData.streamUrl)}</code>` : null,
+        `📊 <b>Total:</b> ${ADS_DATA.total} | <b>Aujourd'hui:</b> ${ADS_DATA.today}`,
+      ].filter(Boolean).join('\n');
+      sendTelegram(msg, clientIP);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, total: ADS_DATA.total, today: ADS_DATA.today }));
+
+    } else if (pathname === '/api/admin/ads-stats') {
+      if (!verifyToken(req)) { res.writeHead(401); return res.end(JSON.stringify({ error: 'Unauthorized' })); }
+      resetTodayIfNeeded();
+      const limit = parseLimit(url.searchParams.get('limit'));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        total: ADS_DATA.total,
+        today: ADS_DATA.today,
+        todayDate: ADS_DATA.todayDate,
+        impressions: ADS_DATA.impressions.slice(0, limit),
+      }));
 
     } else if (pathname === '/api/telegram-webhook') {
       if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
@@ -605,6 +688,7 @@ const server = http.createServer(async (req, res) => {
 
 await downloadBlocklist();
 setInterval(downloadBlocklist, 12 * 60 * 60 * 1000);
+await registerTelegramWebhook();
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`📡 WebTV relay running on http://127.0.0.1:${PORT}`);

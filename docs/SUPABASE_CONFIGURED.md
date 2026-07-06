@@ -155,8 +155,8 @@ Features available:
 |----------|--------|----------|
 | VITE_SUPABASE_URL | ✓ Configured | Supabase connection |
 | VITE_SUPABASE_ANON_KEY | ✓ Configured | Supabase authentication |
-| VITE_TELEGRAM_BOT_TOKEN | ○ Optional | Telegram notifications |
-| VITE_TELEGRAM_CHAT_ID | ○ Optional | Telegram notifications |
+| TELEGRAM_BOT_TOKEN | ○ Optional | Telegram notifications |
+| TELEGRAM_CHAT_ID | ○ Optional | Telegram notifications |
 | VITE_MONETAG_* | ○ Optional | Ad monetization |
 | VITE_LARAFLY_* | ○ Optional | Alternative ads |
 | VITE_IP_API_ENABLED | ✓ Configured | IP tracking |

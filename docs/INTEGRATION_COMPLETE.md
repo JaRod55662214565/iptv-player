@@ -158,8 +158,8 @@ Receives JSON payload:
 - `VITE_CUSTOM_TRACKING_ENABLED=true`
 
 **Optional:**
-- `VITE_TELEGRAM_BOT_TOKEN` - Error notifications
-- `VITE_TELEGRAM_CHAT_ID` - Error notifications
+- `TELEGRAM_BOT_TOKEN` - Error notifications
+- `TELEGRAM_CHAT_ID` - Error notifications
 - `VITE_MONETAG_SITE_ID` - Monetag ads
 - `VITE_LARAFLY_DOMAIN` - Larafly ads
 - `VITE_IP_API_ENABLED` - IP tracking
