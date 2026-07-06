@@ -341,7 +341,7 @@ export async function handleTelegramWebhook(update) {
       const channels = s.topChannels.map(([name, count]) => `  • ${escapeHTML(name)}: ${count}`).join('\n');
       const referrers = s.topReferrers.map(([name, count]) => `  • ${escapeHTML(name)}: ${count}`).join('\n');
 
-      const msg = [
+      const parts = [
         `📊 <b>Statistiques WebTV</b>`,
         ``,
         `👥 <b>Visites</b>`,
@@ -355,11 +355,13 @@ export async function handleTelegramWebhook(update) {
         `  • Mobile: ${s.mobileCount}`,
         `  • Tablette: ${s.tabletCount}`,
         `  • Desktop: ${s.desktopCount}`,
-        s.topBrowsers.length ? `\n🌐 <b>Navigateurs</b>\n${browsers}` : '',
-        s.topOS.length ? `\n💿 <b>Systèmes</b>\n${oses}` : '',
-        s.topCountries.length ? `\n🌍 <b>Pays</b>\n${countries}` : '',
-        s.topChannels.length ? `\n📺 <b>Chaînes les + regardées</b>\n${channels}` : '',
-        s.topReferrers.length ? `\n🔗 <b>D'où ils viennent</b>\n${referrers}` : '',
+      ];
+      if (s.topBrowsers.length) parts.push(``, `🌐 <b>Navigateurs</b>`, browsers);
+      if (s.topOS.length) parts.push(``, `💿 <b>Systèmes</b>`, oses);
+      if (s.topCountries.length) parts.push(``, `🌍 <b>Pays</b>`, countries);
+      if (s.topChannels.length) parts.push(``, `📺 <b>Chaînes les + regardées</b>`, channels);
+      if (s.topReferrers.length) parts.push(``, `🔗 <b>D'où ils viennent</b>`, referrers);
+      parts.push(
         ``,
         `🔒 <b>Modération</b>`,
         `  • Bannis: <b>${s.bans}</b>`,
@@ -369,7 +371,8 @@ export async function handleTelegramWebhook(update) {
         `📢 <b>Publicités</b>`,
         `  • Total: <b>${s.adsTotal}</b>`,
         `  • Aujourd'hui: <b>${s.adsToday}</b>`,
-      ].filter(Boolean).join('\n');
+      );
+      const msg = parts.join('\n');
 
       if (config.BOT_TOKEN) {
         await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
@@ -564,7 +567,7 @@ export async function handleTelegramWebhook(update) {
       const channels = s.topChannels.map(([name, count]) => `  • ${escapeHTML(name)}: ${count}`).join('\n');
       const referrers = s.topReferrers.map(([name, count]) => `  • ${escapeHTML(name)}: ${count}`).join('\n');
 
-      const msg = [
+      const statParts = [
         `📊 <b>Statistiques WebTV</b>`,
         ``,
         `👥 <b>Visites</b>`,
@@ -572,11 +575,19 @@ export async function handleTelegramWebhook(update) {
         `  • IP uniques: <b>${s.uniqueIPs}</b>`,
         `  • Datacenters: ${s.datacenterCount}`,
         `  • Proxys: ${s.proxyCount}`,
-        s.topBrowsers.length ? `\n🌐 <b>Navigateurs</b>\n${browsers}` : '',
-        s.topOS.length ? `\n💿 <b>Systèmes</b>\n${oses}` : '',
-        s.topCountries.length ? `\n🌍 <b>Pays</b>\n${countries}` : '',
-        s.topChannels.length ? `\n📺 <b>Chaînes les + regardées</b>\n${channels}` : '',
-        s.topReferrers.length ? `\n🔗 <b>D'où ils viennent</b>\n${referrers}` : '',
+        `  • Bannis: ${s.bannedCount}`,
+        ``,
+        `📱 <b>Appareils</b>`,
+        `  • Mobile: ${s.mobileCount}`,
+        `  • Tablette: ${s.tabletCount}`,
+        `  • Desktop: ${s.desktopCount}`,
+      ];
+      if (s.topBrowsers.length) statParts.push(``, `🌐 <b>Navigateurs</b>`, browsers);
+      if (s.topOS.length) statParts.push(``, `💿 <b>Systèmes</b>`, oses);
+      if (s.topCountries.length) statParts.push(``, `🌍 <b>Pays</b>`, countries);
+      if (s.topChannels.length) statParts.push(``, `📺 <b>Chaînes les + regardées</b>`, channels);
+      if (s.topReferrers.length) statParts.push(``, `🔗 <b>D'où ils viennent</b>`, referrers);
+      statParts.push(
         ``,
         `🔒 <b>Modération</b>`,
         `  • Bannis: <b>${s.bans}</b>`,
@@ -586,7 +597,8 @@ export async function handleTelegramWebhook(update) {
         `📢 <b>Publicités</b>`,
         `  • Total: <b>${s.adsTotal}</b>`,
         `  • Aujourd'hui: <b>${s.adsToday}</b>`,
-      ].filter(Boolean).join('\n');
+      );
+      const msg = statParts.join('\n');
 
       if (config.BOT_TOKEN) {
         await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
