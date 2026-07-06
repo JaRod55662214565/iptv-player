@@ -663,9 +663,12 @@ const server = http.createServer(async (req, res) => {
             visit ? `📡 <b>ISP:</b> ${visit.isp || 'Inconnu'}` : null,
             visit ? `📱 <b>Appareil:</b> ${visit.deviceType || 'Inconnu'} — ${visit.browser || '?'} ${visit.os || ''}` : null,
             visit ? `📺 <b>Chaîne:</b> ${visit.channelName || 'Aucune'}` : null,
-            isBanned ? `🔓 /unban_${ip}` : null,
-            isPremium ? null : `💎 /premium_${ip}`,
           ].filter(Boolean).join('\n');
+
+          const buttons = [];
+          if (isBanned) buttons.push({ text: '🔓 Débloquer', callback_data: `unban_${ip}` });
+          buttons.push({ text: '🔐 Panel', url: `${SITE_URL}/panel` });
+          if (!isPremium) buttons.push({ text: '💎 Premium', callback_data: `premium_${ip}` });
 
           if (BOT_TOKEN) {
             await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -674,6 +677,7 @@ const server = http.createServer(async (req, res) => {
               body: JSON.stringify({
                 chat_id: chatId, text: lines, parse_mode: 'HTML',
                 disable_web_page_preview: true,
+                reply_markup: { inline_keyboard: [buttons] },
               }),
             });
           }
