@@ -1,0 +1,66 @@
+/**
+ * Monetag Service
+ * Gere les publicites et la monetisation
+ */
+
+const MONETAG_ENABLED = import.meta.env.VITE_MONETAG_ENABLED === 'true'
+const MONETAG_SITE_ID = import.meta.env.VITE_MONETAG_SITE_ID
+
+/**
+ * Initialise Monetag
+ */
+export function initMonetag() {
+  if (!MONETAG_ENABLED || !MONETAG_SITE_ID) {
+    console.log('[Monetag] Disabled or not configured')
+    return false
+  }
+  
+  try {
+    const script = document.createElement('script')
+    script.async = true
+    script.src = 'https://ads.monetag.com/show.js'
+    script.dataset.siteId = MONETAG_SITE_ID
+    
+    script.onload = () => {
+      if (window.monetagAds) {
+        window.monetagAds.refresh()
+        console.log('[Monetag] Initialized')
+      }
+    }
+    
+    script.onerror = () => {
+      console.warn('[Monetag] Failed to load script')
+    }
+    
+    document.head.appendChild(script)
+    return true
+  } catch (error) {
+    console.warn('[Monetag] Initialization error:', error.message)
+    return false
+  }
+}
+
+/**
+ * Rafraichit les annonces
+ */
+export function refreshMonetag() {
+  if (!MONETAG_ENABLED) return
+  
+  try {
+    if (window.monetagAds && typeof window.monetagAds.refresh === 'function') {
+      window.monetagAds.refresh()
+      console.log('[Monetag] Ads refreshed')
+    }
+  } catch (error) {
+    console.warn('[Monetag] Refresh error:', error.message)
+  }
+}
+
+/**
+ * Affiche une annonce a une position specifique
+ */
+export function showAd(position = 'top') {
+  const enabled = MONETAG_ENABLED && !!MONETAG_SITE_ID
+  if (!enabled) return
+  refreshMonetag()
+}

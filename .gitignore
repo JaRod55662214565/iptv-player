@@ -1,0 +1,36 @@
+# -- Secrets --
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+cert.pem
+privkey.pem
+
+# -- Dependencies --
+node_modules/
+
+# -- Build output --
+dist/
+
+# -- Runtime data (visits, bans, blocklist cache) --
+data/*
+!data/.gitkeep
+
+# -- IDE --
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# -- OS --
+.DS_Store
+Thumbs.db
+
+# -- Logs --
+*.log
+npm-debug.log*
+
+# -- Environment overrides --
+*.env.secret
