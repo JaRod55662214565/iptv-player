@@ -56,6 +56,9 @@ const telegramNotifyCache = new Map();
 const channelNotifyCache = new Map();
 let VPN_RANGES = [];
 let PENDING_AD_PUSH = 0; // timestamp du push ad, 0 = aucun
+let ADMIN_TOKEN = '';
+const loginAttempts = new Map(); // IP -> { count, resetAt }
+const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || '';
 
 function loadBans() {
   BANS_LOOKUP.clear();
@@ -148,8 +151,10 @@ async function registerTelegramWebhook() {
   }
   const webhookUrl = `${WEBHOOK_URL}/api/telegram-webhook`;
   try {
+    const params = new URLSearchParams({ url: webhookUrl });
+    if (TELEGRAM_WEBHOOK_SECRET) params.set('secret_token', TELEGRAM_WEBHOOK_SECRET);
     const resp = await fetch(
-      `https://api.telegram.org/bot${BOT_TOKEN}/setWebhook?url=${encodeURIComponent(webhookUrl)}`,
+      `https://api.telegram.org/bot${BOT_TOKEN}/setWebhook?${params}`,
       { signal: AbortSignal.timeout(10000) }
     );
     const data = await resp.json();
@@ -398,6 +403,7 @@ async function handleVisit(req, body) {
 async function handleAdminAuth(body, ip) {
   if (body.password === ADMIN_PASSWORD) {
     const token = crypto.randomBytes(20).toString('hex');
+    ADMIN_TOKEN = token;
     console.log(`[Admin] Connexion reussie depuis ${ip}`);
     return { ok: true, token };
   }
@@ -408,7 +414,19 @@ async function handleAdminAuth(body, ip) {
 function verifyToken(req) {
   const auth = req.headers['authorization'];
   if (!auth || !auth.startsWith('Bearer ')) return false;
-  return auth.slice(7).length > 0;
+  return auth.slice(7) === ADMIN_TOKEN;
+}
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const entry = loginAttempts.get(ip);
+  if (!entry || now > entry.resetAt) {
+    loginAttempts.set(ip, { count: 1, resetAt: now + 60000 });
+    return true;
+  }
+  if (entry.count >= 5) return false;
+  entry.count++;
+  return true;
 }
 
 function parseLimit(str) {
@@ -438,6 +456,11 @@ const server = http.createServer(async (req, res) => {
   try {
     if (pathname === '/' || pathname === '/api/telegram') {
       if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+      const clientIP = getClientIP(req);
+      if (!WHITELIST_LOOKUP.has(clientIP) && BANS_LOOKUP.has(clientIP)) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, isBanned: true, ip: clientIP }));
+      }
       const data = JSON.parse(body || '{}');
       const session = await handleVisit(req, data);
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -488,8 +511,13 @@ const server = http.createServer(async (req, res) => {
 
     } else if (pathname === '/api/admin/auth') {
       if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+      const clientIP = getClientIP(req);
+      if (!checkRateLimit(clientIP)) {
+        res.writeHead(429, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: 'Trop de tentatives. Reessayez dans 60s.' }));
+      }
       const data = JSON.parse(body || '{}');
-      const result = await handleAdminAuth(data, getClientIP(req));
+      const result = await handleAdminAuth(data, clientIP);
       res.writeHead(result.ok ? 200 : 401, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(result));
 
@@ -565,10 +593,12 @@ const server = http.createServer(async (req, res) => {
     } else if (pathname === '/api/stripe/checkout-session') {
       if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
       const data = JSON.parse(body || '{}');
+      const clientIP = getClientIP(req);
       const origin = data.origin || SITE_URL;
       try {
         const session = await stripe.checkout.sessions.create({
           payment_method_types: ['card'],
+          client_reference_id: clientIP,
           line_items: [{
             price_data: {
               currency: 'eur',
@@ -589,6 +619,37 @@ const server = http.createServer(async (req, res) => {
       } catch (err) {
         console.error('[Stripe Error]', err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+
+    } else if (pathname === '/api/stripe/webhook') {
+      if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+      const sig = req.headers['stripe-signature'];
+      const whSecret = process.env.STRIPE_WEBHOOK_SECRET;
+      if (!whSecret) {
+        console.error('[Stripe] STRIPE_WEBHOOK_SECRET non defini');
+        res.writeHead(500);
+        return res.end('Webhook secret not configured');
+      }
+      try {
+        const event = stripe.webhooks.constructEvent(body, sig, whSecret);
+        if (event.type === 'checkout.session.completed') {
+          const s = event.data.object;
+          const clientIP = s.client_reference_id;
+          if (clientIP) {
+            const list = readJSON(PREMIUM_FILE);
+            if (!list.find(p => p.ip === clientIP)) {
+              list.push({ ip: clientIP, date: new Date().toISOString() });
+              savePremium(list);
+              await sendTelegram(`💎 <b>Premium activé via Stripe</b>\n📍 <b>IP:</b> <code>${clientIP}</code>`);
+            }
+          }
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ received: true }));
+      } catch (err) {
+        console.error('[Stripe Webhook Error]', err.message);
+        res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));
       }
 
@@ -633,6 +694,7 @@ const server = http.createServer(async (req, res) => {
 
     } else if (pathname === '/api/ads/trigger-push') {
       if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+      if (!verifyToken(req)) { res.writeHead(401); return res.end(JSON.stringify({ error: 'Unauthorized' })); }
       PENDING_AD_PUSH = Date.now();
       console.log('[Ads] Push ad declenche manuellement');
       await sendTelegram(`📢 <b>PUB PUSHÉE</b>\nUne publicité popunder a été envoyée à tous les visiteurs actifs.`);
@@ -647,6 +709,10 @@ const server = http.createServer(async (req, res) => {
 
     } else if (pathname === '/api/telegram-webhook') {
       if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+      if (TELEGRAM_WEBHOOK_SECRET && req.headers['x-telegram-bot-api-secret-token'] !== TELEGRAM_WEBHOOK_SECRET) {
+        res.writeHead(403);
+        return res.end('Forbidden');
+      }
       const update = JSON.parse(body || '{}');
 
       if (update.message && update.message.text) {
