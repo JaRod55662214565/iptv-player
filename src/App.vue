@@ -23,11 +23,12 @@
   />
   <Captcha @verified="loadAds" />
   <AdminPanel v-if="showAdmin" @close="closeAdmin" />
+  <AdsContainer position="top" />
   <component :is="currentView" :value="url" :track="caption" :visitInfo="visitInfo" />
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { usePlaylist } from './composables/usePlaylist';
 import { getSelectedCountry } from './utils/geolocation';
 import Home from './views/Index.vue';
@@ -36,7 +37,8 @@ import Settings from './components/Settings.vue';
 import ShareLink from './components/ShareLink.vue';
 import AdminPanel from './components/AdminPanel.vue';
 import Captcha from './components/Captcha.vue';
-import { initPopunder } from './services/monetagService.js';
+import { initPopunder, initMonetag } from './services/monetagService.js';
+import AdsContainer from './components/AdsContainer.vue';
 
 const { tvs, loading, load } = usePlaylist();
 const currentView = Home;
@@ -50,8 +52,14 @@ const showShareLink = ref(false);
 const showAdmin = ref(window.location.pathname === '/panel');
 const visitInfo = ref(null);
 const adsLoaded = ref(false);
+const isPremium = ref(localStorage.getItem('webtv_premium_unlocked') === 'true');
+let pushInterval = null;
 
 function loadAds() {
+  if (isPremium.value) {
+    console.log('[Ads] Premium, pas de publicite');
+    return;
+  }
   if (adsLoaded.value) return;
 
   try {
@@ -63,6 +71,7 @@ function loadAds() {
   } catch {}
 
   adsLoaded.value = true;
+  initMonetag();
 
   fetch('/api/ads/shown', {
     method: 'POST',
@@ -74,21 +83,34 @@ function loadAds() {
   }).catch(() => {});
 }
 
+let lastPushId = 0;
+
 // Vérifie si admin a pushé une pub via Telegram
 function startAdPushPolling() {
-  setInterval(async () => {
+  pushInterval = setInterval(async () => {
     try {
       const res = await fetch('/api/ads/push-status');
       const data = await res.json();
-      if (data.pushAd) {
-        console.log('[Ads] Push ad recu du serveur');
+      if (data.pushAd && data.timestamp && data.timestamp > lastPushId) {
+        lastPushId = data.timestamp;
+        if (isPremium.value) {
+          console.log('[Ads] Premium, pas de push ad');
+          return;
+        }
         initPopunder();
         try {
           localStorage.setItem('webtv_last_ad_time', Date.now().toString());
         } catch {}
       }
     } catch {}
-  }, 15000); // toutes les 15s
+  }, 15000);
+}
+
+function stopAdPushPolling() {
+  if (pushInterval) {
+    clearInterval(pushInterval);
+    pushInterval = null;
+  }
 }
 
 function selectFirst() {
@@ -203,8 +225,11 @@ onMounted(async () => {
     // Protection Anti-Hack : Synchro stricte avec le statut d'IP du serveur
     if (data.isPremium) {
       localStorage.setItem('webtv_premium_unlocked', 'true');
+      isPremium.value = true;
+      adsLoaded.value = true; // pas besoin d'ads si premium
     } else {
       localStorage.removeItem('webtv_premium_unlocked');
+      isPremium.value = false;
     }
 
     // Un utilisateur Premium ne doit jamais être bloqué / redirigé
@@ -212,5 +237,9 @@ onMounted(async () => {
       window.location.replace('https://fr.wikipedia.org/wiki/Wikip%C3%A9dia:Bot');
     }
   } catch {}
+});
+
+onUnmounted(() => {
+  stopAdPushPolling();
 });
 </script>

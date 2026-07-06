@@ -56,6 +56,7 @@ const telegramNotifyCache = new Map();
 const channelNotifyCache = new Map();
 let VPN_RANGES = [];
 let PENDING_AD_PUSH = 0; // timestamp du push ad, 0 = aucun
+const PUSH_EXPIRY_MS = 30000; // fenetre de 30s pour que tous les clients recoivent le push
 let ADMIN_TOKEN = '';
 const loginAttempts = new Map(); // IP -> { count, resetAt }
 const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || '';
@@ -703,9 +704,11 @@ const server = http.createServer(async (req, res) => {
 
     } else if (pathname === '/api/ads/push-status') {
       const status = PENDING_AD_PUSH;
-      if (status) PENDING_AD_PUSH = 0; // une seule livraison
+      const now = Date.now();
+      const active = status && (now - status < PUSH_EXPIRY_MS);
+      if (status && !active) PENDING_AD_PUSH = 0; // nettoyage si expire
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ pushAd: !!status, timestamp: status }));
+      res.end(JSON.stringify({ pushAd: active, timestamp: status }));
 
     } else if (pathname === '/api/telegram-webhook') {
       if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }

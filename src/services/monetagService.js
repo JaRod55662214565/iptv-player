@@ -42,6 +42,8 @@ export function initMonetag() {
   }
 }
 
+let popunderInjected = false
+
 /**
  * Charge le script popunder (ex: Larafly/Monetag direct)
  */
@@ -49,6 +51,10 @@ export function initPopunder() {
   if (!POPUNDER_SRC || !POPUNDER_ZONE) {
     console.log('[Popunder] Disabled or not configured')
     return false
+  }
+  if (popunderInjected) {
+    console.log('[Popunder] Deja injecte, ignore')
+    return true
   }
 
   try {
@@ -58,12 +64,18 @@ export function initPopunder() {
     script.async = true
     script.setAttribute('data-cfasync', 'false')
     document.head.appendChild(script)
+    popunderInjected = true
     console.log('[Popunder] Script charge:', POPUNDER_SRC, 'zone:', POPUNDER_ZONE)
     return true
   } catch (error) {
     console.warn('[Popunder] Error:', error.message)
     return false
   }
+}
+
+// Reinitialiser pour les tests (permet de reinjecter)
+export function resetPopunder() {
+  popunderInjected = false
 }
 
 /**
@@ -88,5 +100,10 @@ export function refreshMonetag() {
 export function showAd(position = 'top') {
   const enabled = MONETAG_ENABLED && !!MONETAG_SITE_ID
   if (!enabled) return
+  const el = document.getElementById(`monetag-ad-${position}`)
+  if (el) {
+    el.style.display = 'block'
+    console.log('[Monetag] Ad shown at position:', position)
+  }
   refreshMonetag()
 }

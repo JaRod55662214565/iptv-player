@@ -7,8 +7,8 @@
 </template>
 
 <script setup>
-import { defineProps, onMounted, computed, ref } from 'vue'
-import { showAd, refreshMonetag } from '../services/monetagService.js'
+import { defineProps, onMounted, onUnmounted, computed, ref, watch } from 'vue'
+import { showAd } from '../services/monetagService.js'
 
 const props = defineProps({
   position: {
@@ -17,22 +17,37 @@ const props = defineProps({
   }
 })
 
-const isPremium = ref(localStorage.getItem('webtv_premium_unlocked') === 'true')
 const monetagEnabled = import.meta.env.VITE_MONETAG_ENABLED === 'true'
-const showAds = ref(monetagEnabled && !isPremium.value)
+const showAds = ref(false)
 const containerId = computed(() => `monetag-ad-${props.position}`)
 
+function updatePremium() {
+  const premium = localStorage.getItem('webtv_premium_unlocked') === 'true'
+  showAds.value = monetagEnabled && !premium
+}
+
+// Surveiller les changements de statut premium (Stripe checkout, etc.)
+let premiumWatcher = null
+
 onMounted(() => {
+  updatePremium()
   if (showAds.value) {
-    setTimeout(() => {
-      refreshMonetag()
-      fetch('/api/ads/shown', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channelName: '', streamUrl: '' }),
-      }).catch(() => {})
-    }, 500)
+    setTimeout(() => showAd(props.position), 500)
   }
+  // Reactif : surveille localStorage pour les changements premium
+  premiumWatcher = setInterval(() => {
+    const was = showAds.value
+    updatePremium()
+    if (was && !showAds.value) {
+      // Devenu premium : masquer l'annonce
+      const el = document.getElementById(containerId.value)
+      if (el) el.style.display = 'none'
+    }
+  }, 2000)
+})
+
+onUnmounted(() => {
+  if (premiumWatcher) clearInterval(premiumWatcher)
 })
 </script>
 
