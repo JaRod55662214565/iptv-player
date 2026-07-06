@@ -1,10 +1,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import videojs from 'video.js';
-import { translatePlugin, refreshTranslateBtn } from '../utils/videojsPlugins';
-import en from 'video.js/dist/lang/en.json';
-import fr from 'video.js/dist/lang/fr.json';
 
-export function usePlayer(sourceRef, trackRef, localeRef) {
+export function usePlayer(sourceRef, localeRef) {
   const videoRef = ref(null);
   const playerReady = ref(false);
   const isLoading = ref(false);
@@ -16,36 +13,6 @@ export function usePlayer(sourceRef, trackRef, localeRef) {
   const MAX_RETRIES = 3;
 
   const currentSrc = computed(() => sourceRef.value || '');
-  const languages = ref({ en, fr });
-
-  const tracks = computed(() => {
-    return (trackRef.value && [{
-      src: trackRef.value,
-      srclang: 'en',
-      label: 'default',
-      mode: 'showing',
-    }]) || undefined;
-  });
-
-  const playerOptions = {
-    autoplay: true,
-    muted: true,
-    controls: true,
-    preload: 'auto',
-    html5: {
-      vhs: {
-        overrideNative: !videojs.browser.IS_SAFARI,
-        enableLowInitialPlaylist: true,
-        smoothQualityChange: true,
-        limitRenditionByPlayerDimensions: false,
-        useBandwidthFromLocalStorage: true,
-      },
-      nativeAudioTracks: false,
-      nativeVideoTracks: false,
-    },
-    liveui: true,
-    responsive: true,
-  };
 
   function detectType(url) {
     const ext = url.split('?')[0].toLowerCase();
@@ -74,15 +41,31 @@ export function usePlayer(sourceRef, trackRef, localeRef) {
     await nextTick();
     if (!videoRef.value) return;
 
-    player = videojs(videoRef.value, playerOptions);
+    player = videojs(videoRef.value, {
+      autoplay: true,
+      muted: true,
+      controls: true,
+      preload: 'auto',
+      html5: {
+        vhs: {
+          overrideNative: !videojs.browser.IS_SAFARI,
+          enableLowInitialPlaylist: true,
+          smoothQualityChange: true,
+          limitRenditionByPlayerDimensions: false,
+          useBandwidthFromLocalStorage: true,
+        },
+        nativeAudioTracks: false,
+        nativeVideoTracks: false,
+      },
+      liveui: true,
+      responsive: true,
+    });
 
     player.ready(() => {
       playerReady.value = true;
       isLoading.value = false;
 
       if (!playerInitialized) {
-        videojs.registerPlugin('translatePlugin', translatePlugin);
-        player.translatePlugin();
         playerInitialized = true;
         player.language(localeRef.value === 'fr' ? 'fr' : 'en');
 
@@ -125,12 +108,6 @@ export function usePlayer(sourceRef, trackRef, localeRef) {
     }
   });
 
-  watch(tracks, () => {
-    if (player) {
-      refreshTranslateBtn(player, 'Translate');
-    }
-  });
-
   onUnmounted(() => {
     clearTimeout(sourceChangeTimeout);
     if (player) {
@@ -141,6 +118,5 @@ export function usePlayer(sourceRef, trackRef, localeRef) {
 
   return {
     videoRef, playerReady, isLoading,
-    tracks, languages, playerOptions,
   };
 }

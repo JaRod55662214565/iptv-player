@@ -1,4 +1,4 @@
-import { ref, inject, watch } from "vue";
+import { ref, inject } from "vue";
 import { messages } from "./messages.js";
 
 const I18N_KEY = Symbol("i18n");
@@ -30,12 +30,6 @@ export function createI18n() {
     return str.replace(/\{(\w+)\}/g, (_, k) => params[k] ?? `{${k}}`);
   }
 
-  function toggleLocale() {
-    locale.value = locale.value === "en" ? "fr" : "en";
-    localStorage.setItem(STORAGE_KEY, locale.value);
-    document.documentElement.setAttribute("lang", locale.value);
-  }
-
   function setLocale(lang) {
     if (messages[lang]) {
       locale.value = lang;
@@ -50,10 +44,9 @@ export function createI18n() {
   return {
     locale,
     t,
-    toggleLocale,
     setLocale,
     install(app) {
-      app.provide(I18N_KEY, { locale, t, toggleLocale, setLocale });
+      app.provide(I18N_KEY, { locale, t, setLocale });
     },
   };
 }

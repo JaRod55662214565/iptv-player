@@ -66,6 +66,5 @@ const convert = {
         };
       }
     });
-  },
-  json: (obj) => obj
+  }
 }

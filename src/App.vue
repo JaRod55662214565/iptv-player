@@ -24,7 +24,7 @@
   <Captcha @verified="loadAds" />
   <AdminPanel v-if="showAdmin" @close="closeAdmin" />
   <AdsContainer position="top" />
-  <component :is="currentView" :value="url" :track="caption" :visitInfo="visitInfo" />
+  <component :is="currentView" :value="url" :track="caption" />
 </template>
 
 <script setup>
@@ -50,7 +50,6 @@ const selectedCountry = ref(getSelectedCountry());
 const showSettings = ref(false);
 const showShareLink = ref(false);
 const showAdmin = ref(window.location.pathname === '/panel');
-const visitInfo = ref(null);
 const adsLoaded = ref(false);
 const isPremium = ref(localStorage.getItem('webtv_premium_unlocked') === 'true');
 let pushInterval = null;
@@ -220,7 +219,6 @@ onMounted(async () => {
       }),
     });
     const data = await res.json();
-    visitInfo.value = data;
 
     // Protection Anti-Hack : Synchro stricte avec le statut d'IP du serveur
     if (data.isPremium) {

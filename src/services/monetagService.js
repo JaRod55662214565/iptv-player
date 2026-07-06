@@ -73,11 +73,6 @@ export function initPopunder() {
   }
 }
 
-// Reinitialiser pour les tests (permet de reinjecter)
-export function resetPopunder() {
-  popunderInjected = false
-}
-
 /**
  * Rafraichit les annonces
  */

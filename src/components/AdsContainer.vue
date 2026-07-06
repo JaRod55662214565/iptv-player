@@ -7,7 +7,7 @@
 </template>
 
 <script setup>
-import { defineProps, onMounted, onUnmounted, computed, ref, watch } from 'vue'
+import { defineProps, onMounted, onUnmounted, computed, ref } from 'vue'
 import { showAd } from '../services/monetagService.js'
 
 const props = defineProps({

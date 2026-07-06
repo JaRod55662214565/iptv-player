@@ -6,10 +6,6 @@ export function setToken(t) {
   token = t;
 }
 
-export function getToken() {
-  return token;
-}
-
 async function request(endpoint, method = 'GET', body = null) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;

@@ -63,15 +63,6 @@ export function getSupportedCountries() {
 }
 
 /**
- * Get country info
- * @param {string} countryCode - Country code (FR, UK, DE, NL, PT)
- * @returns {Object} Country info
- */
-export function getCountryInfo(countryCode) {
-  return SUPPORTED_COUNTRIES[countryCode] || SUPPORTED_COUNTRIES[DEFAULT_COUNTRY];
-}
-
-/**
  * Get playlist URL for a country and type (2026 Updated)
  * @param {string} countryCode - Country code (FR, UK, DE, NL, PT)
  * @param {string} type - Playlist type (home, iptv, radio)

@@ -1,17 +1,12 @@
 /**
- * 📊 Tracking Service
- * - Détecte IP et ISP
+ * Tracking Service
+ * - Detecte IP et ISP
  * - Envoie alertes Telegram si VPN/Proxy/Datacenter
  * - Bloque les bots automatiquement
  */
 
-const API_IP = 'https://ip-api.com/json/'
-const ANTI_BOT_ENABLED = import.meta.env.VITE_ANTI_BOT_ENABLED === 'true'
-const BLOCK_VPN = import.meta.env.VITE_BLOCK_VPN === 'true'
-const BLOCK_DATACENTER = import.meta.env.VITE_BLOCK_DATACENTER === 'true'
-
 /**
- * Récupère les infos IP via ip-api.com
+ * Recupere les infos IP via ip-api.com
  * Retourne: { ip, isp, country, city, lat, lon, proxy, hosting, org }
  */
 export async function fetchIpInfo() {
@@ -21,7 +16,7 @@ export async function fetchIpInfo() {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), timeout)
     
-    const response = await fetch(`${API_IP}?fields=status,query,isp,org,as,country,regionName,city,lat,lon,mobile,proxy,hosting`, {
+    const response = await fetch(`https://ip-api.com/json/?fields=status,query,isp,org,as,country,regionName,city,lat,lon,mobile,proxy,hosting`, {
       signal: controller.signal
     })
     
@@ -56,71 +51,7 @@ export async function fetchIpInfo() {
 }
 
 /**
- * Vérifie si l'IP doit être bloquée (VPN/Proxy/Datacenter)
- */
-export async function checkBlocked() {
-  if (!ANTI_BOT_ENABLED) return false
-  
-  try {
-    const ipInfo = await fetchIpInfo()
-    if (!ipInfo) return false
-    
-    const isBlocked = 
-      (BLOCK_VPN && ipInfo.isProxy) ||
-      (BLOCK_DATACENTER && ipInfo.isHosting)
-    
-    if (isBlocked) {
-      // Ne pas envoyer Telegram ici, c'est fait dans App.vue
-      console.warn('[Tracking] IP bloquée:', ipInfo.ip, ipInfo.isp)
-    }
-    
-    return isBlocked
-  } catch (error) {
-    console.warn('[Tracking] Error checking IP:', error.message)
-    return false
-  }
-}
-
-/**
- * Envoie une notification Telegram
- * Supporte: visite normale, accès bloqué, erreurs
- */
-export async function initTracking() {
-  if (import.meta.env.VITE_TRACKING_ENABLED !== 'true') {
-    console.log('[Tracking] Disabled')
-    return
-  }
-  
-  try {
-    const ipInfo = await fetchIpInfo()
-    
-    if (!ipInfo) {
-      console.warn('[Tracking] Could not fetch IP info')
-      return
-    }
-    
-    console.log('[Tracking] IP Info:', ipInfo)
-    
-    // Sauvegarde en sessionStorage (pas de partage entre onglets)
-    sessionStorage.setItem('ipInfo', JSON.stringify(ipInfo))
-    
-    // Vérifier le blocage
-    const isBlocked = ANTI_BOT_ENABLED && (
-      (BLOCK_VPN && ipInfo.isProxy) ||
-      (BLOCK_DATACENTER && ipInfo.isHosting)
-    )
-    
-    sessionStorage.setItem('isBlocked', isBlocked ? 'true' : 'false')
-    
-    return { ipInfo, isBlocked }
-  } catch (error) {
-    console.warn('[Tracking] Initialization error:', error.message)
-    return null
-  }
-}
-
-/**
- * Récupère les infos IP sauvegardées
+ * Recupere les infos IP sauvegardees
  */
 export function getStoredIpInfo() {
   try {
@@ -129,11 +60,4 @@ export function getStoredIpInfo() {
   } catch {
     return null
   }
-}
-
-/**
- * Récupère le statut de blocage sauvegardé
- */
-export function getBlockedStatus() {
-  return sessionStorage.getItem('isBlocked') === 'true'
 }

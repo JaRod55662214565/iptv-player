@@ -78,7 +78,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useI18n } from '../i18n/index.js'
-import { register, isConfigured } from '../services/authService.js'
+import { register } from '../services/authService.js'
 
 const { t } = useI18n()
 

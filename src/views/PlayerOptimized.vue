@@ -46,8 +46,7 @@ import { usePlayer } from '../composables/usePlayer';
 import { ref, toRef } from 'vue';
 
 const { locale } = useI18n();
-const props = defineProps(['value', 'track', 'visitInfo']);
-const showInfo = ref(false);
+const props = defineProps(['value', 'track']);
 
 const isPremium = ref(localStorage.getItem('webtv_premium_unlocked') === 'true');
 const checkoutLoading = ref(false);
@@ -75,10 +74,8 @@ async function handleCheckout() {
 
 const {
   videoRef, playerReady, isLoading,
-  tracks, languages, playerOptions,
 } = usePlayer(
   toRef(props, 'value'),
-  toRef(props, 'track'),
   locale,
 );
 </script>

@@ -178,6 +178,7 @@ async function registerTelegramWebhook() {
           { command: 'start', description: 'Afficher les commandes disponibles' },
           { command: 'help', description: 'Afficher les commandes disponibles' },
           { command: 'ip', description: 'Interroger une IP (ex: /ip 1.2.3.4)' },
+          { command: 'list', description: 'Lister les IPs bloquées, whitelistées et premium' },
         ],
       }),
     });
@@ -214,18 +215,6 @@ async function downloadBlocklist() {
 function escapeHTML(s) {
   if (typeof s !== 'string') return '';
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function countryFlag(countryCode) {
-  if (!countryCode || countryCode.length !== 2) return '';
-  try {
-    const points = [...countryCode.toUpperCase()].map(c => {
-      const code = c.charCodeAt(0);
-      if (code < 65 || code > 90) throw new Error();
-      return 0x1F1E6 + code - 65;
-    });
-    return String.fromCodePoint(...points);
-  } catch { return ''; }
 }
 
 async function lookupIP(ip) {
@@ -728,6 +717,7 @@ const server = http.createServer(async (req, res) => {
             ``,
             `🔍 <code>/ip &lt;adresse&gt;</code> — Interroger une IP`,
             `   Ex: <code>/ip 52.16.245.145</code>`,
+            `📋 <code>/list</code> — Voir les IPs bloquées, whitelistées et premium`,
             ``,
             `📢 Les boutons inline sur les notifications permettent de :`,
             `   • 🔓 Débloquer une IP`,
@@ -789,6 +779,46 @@ const server = http.createServer(async (req, res) => {
             }
             console.log(`[Telegram] /ip lookup: ${ip}`);
           }
+        } else if (cmd === '/list') {
+          const bans = readJSON(BANS_FILE);
+          const whitelist = readJSON(WHITELIST_FILE);
+          const premiums = readJSON(PREMIUM_FILE);
+
+          const banLines = bans.length > 0
+            ? bans.slice(0, 20).map(b => `🚫 <code>${escapeHTML(b.ip)}</code>${b.reason ? ` — ${escapeHTML(b.reason)}` : ''}`).join('\n')
+            : 'Aucun IP bloqué.';
+          const whitelistLines = whitelist.length > 0
+            ? whitelist.slice(0, 20).map(ip => `✅ <code>${escapeHTML(ip)}</code>`).join('\n')
+            : 'Aucun IP whitelisté.';
+          const premiumLines = premiums.length > 0
+            ? premiums.slice(0, 20).map(p => `💎 <code>${escapeHTML(p.ip)}</code> (${new Date(p.date).toLocaleDateString()})`).join('\n')
+            : 'Aucun IP premium.';
+
+          const msg = [
+            `📋 <b>Liste des IPs</b>`,
+            ``,
+            `🚫 <b>Bloqués (${bans.length})</b> :`,
+            banLines,
+            bans.length > 20 ? `... et ${bans.length - 20} de plus` : '',
+            ``,
+            `✅ <b>Whitelistés (${whitelist.length})</b> :`,
+            whitelistLines,
+            whitelist.length > 20 ? `... et ${whitelist.length - 20} de plus` : '',
+            ``,
+            `💎 <b>Premium (${premiums.length})</b> :`,
+            premiumLines,
+            premiums.length > 20 ? `... et ${premiums.length - 20} de plus` : '',
+          ].filter(Boolean).join('\n');
+
+          if (BOT_TOKEN) {
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML' }),
+            });
+          }
+          console.log('[Telegram] /list');
+
         } else {
           // Commande inconnue
           if (BOT_TOKEN) {
