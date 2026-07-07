@@ -3,25 +3,34 @@ import { config } from '../config.js';
 import { state } from '../state.js';
 import { cidrToRange } from '../lib/utils.js';
 
+function loadRanges(text) {
+  return text.trim().split('\n')
+    .filter(l => l && !l.startsWith('#'))
+    .map(cidrToRange)
+    .filter(Boolean);
+}
+
 export async function downloadBlocklist() {
   try {
     const resp = await fetch(config.BLOCKLIST_URL, { signal: AbortSignal.timeout(15000) });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const text = await resp.text();
+    const ranges = loadRanges(text);
+    if (ranges.length < 100) throw new Error(`Blocklist trop petite: ${ranges.length} plages`);
     fs.writeFileSync(config.BLOCKLIST_FILE, text);
-    state.VPN_RANGES = text.trim().split('\n')
-      .filter(l => l && !l.startsWith('#'))
-      .map(cidrToRange)
-      .filter(Boolean);
+    state.VPN_RANGES = ranges;
     console.log(`[VPN] Blocklist chargee: ${state.VPN_RANGES.length} plages CIDR`);
   } catch (e) {
     console.error('[VPN] Echec telechargement blocklist:', e.message);
     if (fs.existsSync(config.BLOCKLIST_FILE)) {
+      const stat = fs.statSync(config.BLOCKLIST_FILE);
+      const ageMs = Date.now() - stat.mtimeMs;
+      const ageDays = ageMs / (24 * 60 * 60 * 1000);
+      if (ageDays > 7) {
+        console.warn(`[VPN] ATTENTION: Cache blocklist age de ${ageDays.toFixed(1)} jours (> 7 jours)`);
+      }
       const text = fs.readFileSync(config.BLOCKLIST_FILE, 'utf8');
-      state.VPN_RANGES = text.trim().split('\n')
-        .filter(l => l && !l.startsWith('#'))
-        .map(cidrToRange)
-        .filter(Boolean);
+      state.VPN_RANGES = loadRanges(text);
       console.log(`[VPN] Blocklist depuis cache: ${state.VPN_RANGES.length} plages`);
     }
   }

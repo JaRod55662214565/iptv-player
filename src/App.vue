@@ -23,6 +23,7 @@
   />
   <Captcha @verified="loadAds" />
   <AdminPanel v-if="showAdmin" @close="closeAdmin" />
+  <Toast />
   <AdsContainer position="top" />
   <component :is="currentView" :value="url" :track="caption" />
 </template>
@@ -39,6 +40,7 @@ import AdminPanel from './components/AdminPanel.vue';
 import Captcha from './components/Captcha.vue';
 import { initPopunder, initMonetag } from './services/monetagService.js';
 import AdsContainer from './components/AdsContainer.vue';
+import Toast from './components/Toast.vue';
 
 const { tvs, loading, load } = usePlaylist();
 const currentView = Home;

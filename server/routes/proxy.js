@@ -1,8 +1,13 @@
 import { config } from '../config.js';
 import crypto from 'node:crypto';
+import dns from 'node:dns';
+import { isPrivateIP, checkRateLimit, getClientIP, escapeHTML } from '../lib/utils.js';
 
 const urlStore = new Map();
 const PROXY_PREFIX = '/api/proxy/stream';
+const proxyRateLimits = new Map();
+const MAX_REDIRECTS = 5;
+const ALLOWED_PROTOCOLS = ['http:', 'https:'];
 
 function storeUrl(url) {
   const id = crypto.randomBytes(4).toString('hex');
@@ -16,6 +21,53 @@ function getProxyUrl(url) {
   return `${PROXY_PREFIX}/${id}`;
 }
 
+async function checkSSRF(url) {
+  if (!ALLOWED_PROTOCOLS.includes(url.protocol)) {
+    throw new Error('Invalid protocol');
+  }
+
+  const port = url.port || (url.protocol === 'https:' ? 443 : 80);
+  const allowedPorts = config.PROXY_ALLOWED_PORTS;
+  if (allowedPorts !== '*') {
+    const ports = allowedPorts.split(',').map(p => parseInt(p.trim(), 10));
+    if (!ports.includes(port)) {
+      throw new Error(`Port ${port} not allowed`);
+    }
+  }
+
+  const addresses = await dns.promises.lookup(url.hostname, { all: true });
+  for (const { address } of addresses) {
+    if (isPrivateIP(address)) {
+      throw new Error(`SSRF blocked: ${address} is a private/reserved IP`);
+    }
+  }
+}
+
+async function safeFetch(targetUrl, req, maxRedirects = MAX_REDIRECTS) {
+  const headers = { ...FETCH_HEADERS, 'Referer': config.SITE_URL || 'https://www.google.com/' };
+  if (req.headers.range) headers['Range'] = req.headers.range;
+
+  let url = targetUrl;
+  for (let i = 0; i <= maxRedirects; i++) {
+    await checkSSRF(url);
+
+    const resp = await fetch(url, { headers, signal: AbortSignal.timeout(30000), redirect: 'manual' });
+
+    if (resp.status >= 300 && resp.status < 400) {
+      const location = resp.headers.get('location');
+      if (!location) return resp;
+      await resp.arrayBuffer().catch(() => {});
+      url = new URL(location, url);
+      if (!ALLOWED_PROTOCOLS.includes(url.protocol)) {
+        throw new Error('Invalid protocol in redirect');
+      }
+      continue;
+    }
+    return resp;
+  }
+  throw new Error('Too many redirects');
+}
+
 const FETCH_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   'Accept': '*/*',
@@ -26,25 +78,49 @@ const FETCH_HEADERS = {
 const SEGMENT_EXTS = /\.(ts|m4s|mp4|aac)$/i;
 
 async function fetchAndRespond(targetUrl, req, res) {
-  const headers = { ...FETCH_HEADERS, 'Referer': config.SITE_URL || 'https://www.google.com/' };
-  if (req.headers.range) headers['Range'] = req.headers.range;
+  const CORS_ORIGIN = config.SITE_URL;
+  const BODY_SIZE_LIMIT = config.PROXY_BODY_SIZE_LIMIT_MB * 1024 * 1024;
 
   try {
-    const resp = await fetch(targetUrl, { headers, signal: AbortSignal.timeout(30000) });
+    const resp = await safeFetch(targetUrl, req);
     if (!resp.ok) {
-      res.writeHead(resp.status);
+      const status = resp.status;
+      try { resp.body?.getReader().cancel(); } catch {}
+      res.writeHead(status);
       return res.end();
     }
 
+    const finalUrl = new URL(resp.url);
     const contentType = resp.headers.get('content-type') || '';
-    const isM3U8 = contentType.includes('mpegurl') || contentType.includes('m3u8') || targetUrl.pathname.match(/\.m3u8?$/i);
+    const isM3U8 = contentType.includes('mpegurl') || contentType.includes('m3u8') || finalUrl.pathname.match(/\.m3u8?$/i);
 
     if (isM3U8) {
       const text = await resp.text();
-      const baseUrl = targetUrl.href.substring(0, targetUrl.href.lastIndexOf('/') + 1);
-      const rewritten = text.split('\n').map(line => {
+      if (text.length > BODY_SIZE_LIMIT) {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'Playlist too large' }));
+      }
+      const lines = text.split('\n');
+      if (lines.length > 10000) {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'Playlist too many lines' }));
+      }
+      if (lines.length > 1 && !lines[0].trim().startsWith('#EXTM3U')) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'Invalid playlist' }));
+      }
+      const baseUrl = finalUrl.href.substring(0, finalUrl.href.lastIndexOf('/') + 1);
+      const rewritten = lines.map((line, idx, arr) => {
         const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) return line;
+        if (!trimmed) return line;
+        if (trimmed.startsWith('#EXTINF:')) {
+          const commaIdx = line.indexOf(',');
+          if (commaIdx !== -1) {
+            return line.slice(0, commaIdx + 1) + escapeHTML(line.slice(commaIdx + 1));
+          }
+          return line;
+        }
+        if (trimmed.startsWith('#')) return line;
         try {
           new URL(trimmed);
           return getProxyUrl(trimmed);
@@ -54,44 +130,70 @@ async function fetchAndRespond(targetUrl, req, res) {
       }).join('\n');
       res.writeHead(200, {
         'Content-Type': 'application/vnd.apple.mpegurl',
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': CORS_ORIGIN,
         'Cache-Control': 'no-cache',
       });
       return res.end(rewritten);
     }
 
-    const isSegment = contentType.includes('video/') || contentType.includes('application/octet-stream') || targetUrl.pathname.match(SEGMENT_EXTS);
+    const isSegment = contentType.includes('video/') || contentType.includes('application/octet-stream') || finalUrl.pathname.match(SEGMENT_EXTS);
     if (isSegment) {
       const range = resp.headers.get('content-range');
       const length = resp.headers.get('content-length');
       const headers_out = {
         'Content-Type': contentType || 'video/MP2T',
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': CORS_ORIGIN,
         'Cache-Control': 'public, max-age=3600',
       };
       if (range) headers_out['Content-Range'] = range;
       if (length) headers_out['Content-Length'] = length;
       res.writeHead(req.headers.range ? 206 : 200, headers_out);
-      for await (const chunk of resp.body) res.write(chunk);
+      let bytes = 0;
+      try {
+        for await (const chunk of resp.body) {
+          bytes += chunk.length;
+          if (bytes > BODY_SIZE_LIMIT) {
+            try { resp.body?.getReader().cancel(); } catch {}
+            break;
+          }
+          res.write(chunk);
+        }
+      } catch {}
       return res.end();
     }
 
     res.writeHead(200, {
       'Content-Type': contentType,
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': CORS_ORIGIN,
     });
-    for await (const chunk of resp.body) res.write(chunk);
+    let bytes = 0;
+    try {
+      for await (const chunk of resp.body) {
+        bytes += chunk.length;
+        if (bytes > BODY_SIZE_LIMIT) {
+          try { resp.body?.getReader().cancel(); } catch {}
+          break;
+        }
+        res.write(chunk);
+      }
+    } catch {}
     return res.end();
   } catch (err) {
-    console.error('[Proxy] Error fetching', targetUrl.href, err.message);
-    try { res.writeHead(502, { 'Content-Type': 'application/json' }); } catch {}
-    try { res.end(JSON.stringify({ error: 'Proxy error' })); } catch {}
+    console.error('[Proxy] Error fetching', targetUrl ? targetUrl.href : '(unknown)', err.message);
+    try { res.writeHead(err.message.startsWith('SSRF blocked') || err.message.startsWith('Port ') ? 400 : 502, { 'Content-Type': 'application/json' }); } catch {}
+    try { res.end(JSON.stringify({ error: err.message || 'Proxy error' })); } catch {}
     return true;
   }
 }
 
 export async function handleProxyRoutes(pathname, req, res) {
   if (!pathname.startsWith(PROXY_PREFIX)) return false;
+
+  const clientIP = getClientIP(req);
+  if (!checkRateLimit(proxyRateLimits, clientIP, config.PROXY_RATE_LIMIT, config.PROXY_RATE_WINDOW_MS)) {
+    res.writeHead(429, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ error: 'Too many requests. Try again later.' }));
+  }
 
   if (pathname === PROXY_PREFIX) {
     const urlParam = new URL(req.url, `http://${req.headers.host}`).searchParams.get('url');

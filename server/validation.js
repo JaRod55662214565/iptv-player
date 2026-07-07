@@ -13,5 +13,10 @@ export function runBootValidation() {
     }
   }
 
+  if (!process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD.length < 8) {
+    console.error('CRITICAL ERROR: ADMIN_PASSWORD must be at least 8 characters!');
+    hasError = true;
+  }
+
   if (hasError) process.exit(1);
 }

@@ -3,7 +3,11 @@ import { readJSON, writeJSON, serializeWrite } from '../storage.js';
 import { config } from '../config.js';
 import { sendTelegram, handleTelegramWebhook } from '../services/telegram.js';
 import { lookupIP } from '../services/geo.js';
-import { escapeHTML, parseUA, detectDeviceType, generateSessionID, getClientIP, isInVPNRange, isBanned } from '../lib/utils.js';
+import { escapeHTML, parseUA, detectDeviceType, generateSessionID, getClientIP, isInVPNRange, isBanned, checkRateLimit } from '../lib/utils.js';
+
+const trackingRateLimits = new Map();
+const captchaRateLimits = new Map();
+const channelRateLimits = new Map();
 
 async function handleVisit(req, body) {
   const clientIP = getClientIP(req);
@@ -92,6 +96,10 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
   if (pathname === '/' || pathname === '/api/telegram') {
     if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
     const clientIP = getClientIP(req);
+    if (!checkRateLimit(trackingRateLimits, clientIP, config.TRACKING_RATE_LIMIT, config.RATE_WINDOW_MS)) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Too many requests' }));
+    }
     if (!state.WHITELIST_LOOKUP.has(clientIP) && state.BANS_LOOKUP.has(clientIP)) {
       res.writeHead(403, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ ok: false, isBanned: true, ip: clientIP }));
@@ -110,8 +118,12 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
 
   if (pathname === '/api/captcha/failed') {
     if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
-    const data = JSON.parse(body || '{}');
     const clientIP = getClientIP(req);
+    if (!checkRateLimit(captchaRateLimits, clientIP, config.CAPTCHA_RATE_LIMIT, config.RATE_WINDOW_MS)) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Too many requests' }));
+    }
+    const data = JSON.parse(body || '{}');
     const msg = [
       `⚠️ <b>CAPTCHA RATÉ</b>`,
       `📍 <b>IP:</b> <code>${escapeHTML(clientIP)}</code>`,
@@ -128,8 +140,12 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
 
   if (pathname === '/api/telegram/channel') {
     if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
-    const data = JSON.parse(body || '{}');
     const clientIP = getClientIP(req);
+    if (!checkRateLimit(channelRateLimits, clientIP, config.TRACKING_RATE_LIMIT, config.RATE_WINDOW_MS)) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Too many requests' }));
+    }
+    const data = JSON.parse(body || '{}');
     const now = Date.now();
     const last = state.channelNotifyCache.get(clientIP);
 

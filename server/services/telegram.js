@@ -728,7 +728,7 @@ export async function handleTelegramWebhook(update) {
       }
       if (chatId && msgId) await buildAdminMenu(chatId, msgId);
       console.log('[Telegram] Admin back');
-    } else if (data === 'admin_close') {
+    } else if (data === 'admin_close' || data === 'list_close') {
       if (config.BOT_TOKEN) {
         await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
           method: 'POST',
@@ -736,15 +736,15 @@ export async function handleTelegramWebhook(update) {
           body: JSON.stringify({ callback_query_id: cq.id, text: '✖ Fermé' }),
         });
         if (chatId && msgId) {
-          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/editMessageReplyMarkup`, {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/deleteMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: chatId, message_id: msgId, reply_markup: {} }),
+            body: JSON.stringify({ chat_id: chatId, message_id: msgId }),
           });
         }
       }
-      console.log('[Telegram] Admin close');
-    } else if (data === 'list_prev' || data === 'list_next' || data === 'list_close') {
+      console.log('[Telegram] Message fermé');
+    } else if (data === 'list_prev' || data === 'list_next') {
       if (!isAuthorizedChat(chatId)) {
         if (config.BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
@@ -753,22 +753,6 @@ export async function handleTelegramWebhook(update) {
             body: JSON.stringify({ callback_query_id: cq.id, text: '⛔ Accès refusé.', show_alert: true }),
           });
         }
-      } else if (data === 'list_close') {
-        if (config.BOT_TOKEN) {
-          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ callback_query_id: cq.id, text: '✖ Liste fermée' }),
-          });
-          if (chatId && msgId) {
-            await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/editMessageReplyMarkup`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chat_id: chatId, message_id: msgId, reply_markup: {} }),
-            });
-          }
-        }
-        console.log('[Telegram] List closed');
       } else {
         const cur = (LIST_PAGES.get(chatId) || {}).page || 0;
         const requested = data === 'list_prev' ? cur - 1 : cur + 1;

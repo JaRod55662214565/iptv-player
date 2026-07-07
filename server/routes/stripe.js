@@ -2,17 +2,23 @@ import { config, getStripe } from '../config.js';
 import { state, savePremium } from '../state.js';
 import { readJSON } from '../storage.js';
 import { sendTelegram } from '../services/telegram.js';
-import { escapeHTML, getClientIP } from '../lib/utils.js';
+import { escapeHTML, getClientIP, checkRateLimit } from '../lib/utils.js';
+
+const stripeRateLimits = new Map();
 
 export async function handleStripeRoutes(pathname, req, res, body) {
   if (!pathname.startsWith('/api/stripe')) return false;
 
   if (pathname === '/api/stripe/checkout-session') {
     if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+    const clientIP = getClientIP(req);
+    if (!checkRateLimit(stripeRateLimits, clientIP, config.STRIPE_RATE_LIMIT, config.RATE_WINDOW_MS)) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Too many requests' }));
+    }
     const stripe = getStripe();
     if (!stripe) { res.writeHead(500); return res.end(JSON.stringify({ error: 'Stripe not configured' })); }
     const data = JSON.parse(body || '{}');
-    const clientIP = getClientIP(req);
     let origin = data.origin || config.SITE_URL;
     if (!origin.startsWith(config.SITE_URL)) origin = config.SITE_URL;
     try {

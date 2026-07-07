@@ -3,7 +3,9 @@ import { config } from '../config.js';
 import { state, saveBans, saveWhitelist, savePremium } from '../state.js';
 import { readJSON } from '../storage.js';
 import { sendTelegram } from '../services/telegram.js';
-import { escapeHTML, getClientIP, parseLimit } from '../lib/utils.js';
+import { escapeHTML, getClientIP, parseLimit, checkRateLimit } from '../lib/utils.js';
+
+const adminGlobalLimits = new Map();
 
 function isValidIP(ip) {
   if (!ip || typeof ip !== 'string') return false;
@@ -17,6 +19,10 @@ function isValidIP(ip) {
 }
 
 function handleAdminAuth(body, ip) {
+  if (!body.password || typeof body.password !== 'string' || body.password.length < 1) {
+    console.log(`[Admin] Echec connexion depuis ${ip} (mot de passe vide ou invalide)`);
+    return { ok: false, error: 'Mot de passe incorrect' };
+  }
   const pwd = (body.password || '').padEnd(64).slice(0, 64);
   const expected = (config.ADMIN_PASSWORD || '').padEnd(64).slice(0, 64);
   const a = Buffer.from(pwd);
@@ -46,18 +52,6 @@ function verifyToken(req) {
   return true;
 }
 
-function checkRateLimit(ip) {
-  const now = Date.now();
-  const entry = state.loginAttempts.get(ip);
-  if (!entry || now > entry.resetAt) {
-    state.loginAttempts.set(ip, { count: 1, resetAt: now + 60000 });
-    return true;
-  }
-  if (entry.count >= 5) return false;
-  entry.count++;
-  return true;
-}
-
 function unauth(res) {
   res.writeHead(401, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ error: 'Unauthorized' }));
@@ -69,24 +63,16 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
   // Rate limiting global sur tous les endpoints admin (30 req/60s par IP)
   const clientIPGlobal = getClientIP(req);
   if (pathname !== '/api/admin/auth') {
-    const now = Date.now();
-    const key = 'global_' + clientIPGlobal;
-    const entry = state.loginAttempts.get(key);
-    if (entry && now <= entry.resetAt && entry.count >= 30) {
+    if (!checkRateLimit(adminGlobalLimits, 'global_' + clientIPGlobal, 30, 60000)) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: 'Trop de requetes. Reessayez dans 60s.' }));
-    }
-    if (entry && now <= entry.resetAt) {
-      entry.count++;
-    } else {
-      state.loginAttempts.set(key, { count: 1, resetAt: now + 60000 });
     }
   }
 
   if (pathname === '/api/admin/auth') {
     if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
     const clientIP = getClientIP(req);
-    if (!checkRateLimit(clientIP)) {
+    if (!checkRateLimit(state.loginAttempts, clientIP, 5, 60000)) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ ok: false, error: 'Trop de tentatives. Reessayez dans 60s.' }));
     }
@@ -207,6 +193,7 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
     if (!verifyToken(req)) return unauth(res);
     state.ADMIN_TOKEN = null;
     state.loginAttempts.clear();
+    adminGlobalLimits.clear();
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true, message: 'Toutes les sessions ont été tuées.' }));
     return true;

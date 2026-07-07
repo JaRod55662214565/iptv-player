@@ -42,9 +42,11 @@
 import { useI18n } from '../i18n/index.js';
 import { usePlayer } from '../composables/usePlayer';
 import { ref, toRef, onMounted } from 'vue';
+import { useToast } from '../stores/toast';
 
 const { locale } = useI18n();
 const props = defineProps(['value', 'track']);
+const toast = useToast();
 
 const isPremium = ref(false);
 const premiumChecked = ref(false);
@@ -72,10 +74,10 @@ async function handleCheckout() {
     if (data.url) {
       window.location.href = data.url;
     } else {
-      alert(data.error || 'Erreur lors de l\'initialisation du paiement');
+      toast.show(data.error || 'Erreur lors de l\'initialisation du paiement', 'error');
     }
   } catch (err) {
-    alert('Erreur réseau. Veuillez réessayer.');
+    toast.show('Erreur réseau. Veuillez réessayer.', 'error');
   } finally {
     checkoutLoading.value = false;
   }

@@ -1,9 +1,32 @@
 import crypto from 'node:crypto';
+import ipaddr from 'ipaddr.js';
 import { state } from '../state.js';
 
 export function escapeHTML(s) {
   if (typeof s !== 'string') return '';
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+export function isPrivateIP(ip) {
+  try {
+    const addr = ipaddr.parse(ip);
+    const blocked = ['loopback', 'private', 'linkLocal', 'carrierGradeNat', 'uniqueLocal', 'unspecified', 'reserved'];
+    return blocked.includes(addr.range());
+  } catch {
+    return true;
+  }
+}
+
+export function checkRateLimit(map, key, maxAttempts, windowMs) {
+  const now = Date.now();
+  const entry = map.get(key);
+  if (!entry || now > entry.resetAt) {
+    map.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= maxAttempts) return false;
+  entry.count++;
+  return true;
 }
 
 export function ipToInt(ip) {
