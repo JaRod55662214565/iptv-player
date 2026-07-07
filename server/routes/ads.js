@@ -22,12 +22,16 @@ export async function handleAdsRoutes(pathname, req, res, body, url) {
     state.ADS_DATA.impressions.unshift(entry);
     if (state.ADS_DATA.impressions.length > 500) state.ADS_DATA.impressions.length = 500;
     saveAds();
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayVisits = state.VISITS.filter(v => v.timestamp && v.timestamp.startsWith(todayStr)).length;
+    const uniqueToday = new Set(state.VISITS.filter(v => v.timestamp && v.timestamp.startsWith(todayStr)).map(v => v.ip)).size;
     const msg = [
       `📢 <b>PUBLICITÉ DIFFUSÉE</b>`,
       `📍 <b>IP:</b> <code>${escapeHTML(clientIP)}</code>`,
       adsData.channelName ? `📺 <b>Chaîne:</b> ${escapeHTML(adsData.channelName)}` : null,
       adsData.streamUrl ? `🔗 <b>Flux:</b> <code>${escapeHTML(adsData.streamUrl)}</code>` : null,
       `📊 <b>Total:</b> ${state.ADS_DATA.total} | <b>Aujourd'hui:</b> ${state.ADS_DATA.today}`,
+      `👥 <b>Visites aujourd'hui:</b> ${todayVisits} (${uniqueToday} uniques)`,
     ].filter(Boolean).join('\n');
     await sendTelegram(msg, clientIP);
     res.writeHead(200, { 'Content-Type': 'application/json' });

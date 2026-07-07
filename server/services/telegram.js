@@ -100,13 +100,11 @@ export async function sendTelegram(text, ip) {
     row1.push({ text: '🔐 Panel', url: `${config.SITE_URL}/panel` });
     reply_markup.inline_keyboard[0] = row1;
 
-    const row2 = [
-      { text: '📢 Push Ad (global)', callback_data: 'push_ad' },
-    ];
+    const row2 = [];
     if (ip) {
       row2.push({ text: '📢 Push (cette IP)', callback_data: `push_ip_${ip}` });
     }
-    reply_markup.inline_keyboard[1] = row2;
+    if (row2.length > 0) reply_markup.inline_keyboard[1] = row2;
 
     const resp = await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
       method: 'POST',
@@ -281,7 +279,7 @@ export async function handleTelegramWebhook(update) {
         `📢 Les boutons inline sur les notifications permettent de :`,
         `   • ⛔ Bloquer / 🔓 Débloquer une IP`,
         `   • 💎 Passer une IP en Premium`,
-        `   • 📢 Push une pub à tous les visiteurs`,
+        `   • 📢 Push une pub ciblée sur une IP`,
         `   • 🔐 Accéder au panel admin`,
       ].join('\n');
       if (config.BOT_TOKEN) {
@@ -767,21 +765,21 @@ export async function handleTelegramWebhook(update) {
             body: JSON.stringify({
               chat_id: chatId, message_id: msgId,
               text: updatedMsg, parse_mode: 'HTML',
-              reply_markup: {
-                inline_keyboard: [
-                  [
-                    { text: '📊 Stats', callback_data: 'admin_stats' },
-                    { text: '📋 Liste IPs', callback_data: 'admin_list' },
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      { text: '📊 Stats', callback_data: 'admin_stats' },
+                      { text: '📋 Liste IPs', callback_data: 'admin_list' },
+                    ],
+                    [
+                      { text: '📢 Push Ad', callback_data: 'push_ad' },
+                      { text: '🔐 Panel Web', url: `${config.SITE_URL}/panel` },
+                    ],
+                    [
+                      { text: '🔄 Rafraîchir', callback_data: 'admin_refresh' },
+                    ],
                   ],
-                  [
-                    { text: '📢 Push Ad', callback_data: 'push_ad' },
-                    { text: '🔐 Panel Web', url: `${config.SITE_URL}/panel` },
-                  ],
-                  [
-                    { text: '🔄 Rafraîchir', callback_data: 'admin_refresh' },
-                  ],
-                ],
-              },
+                },
             }),
           });
         }
