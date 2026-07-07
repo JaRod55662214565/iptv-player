@@ -13,7 +13,8 @@ export async function handleStripeRoutes(pathname, req, res, body) {
     if (!stripe) { res.writeHead(500); return res.end(JSON.stringify({ error: 'Stripe not configured' })); }
     const data = JSON.parse(body || '{}');
     const clientIP = getClientIP(req);
-    const origin = data.origin || config.SITE_URL;
+    let origin = data.origin || config.SITE_URL;
+    if (!origin.startsWith(config.SITE_URL)) origin = config.SITE_URL;
     try {
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],

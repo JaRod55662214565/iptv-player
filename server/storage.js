@@ -2,7 +2,7 @@ import fs from 'node:fs';
 
 export function readJSON(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
-  catch { return []; }
+  catch (e) { console.warn('[FS] Lecture impossible', file, e.message); return []; }
 }
 
 export function writeJSON(file, data) {

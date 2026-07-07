@@ -50,7 +50,7 @@ export function usePlaylist() {
         setCached(primary, parsed);
         tvs.value = result;
         if (mode === 'home') {
-          try { localStorage.setItem('tvlistUrl', url); } catch {}
+          try { localStorage.setItem('tvlistUrl', url); } catch (e) { console.warn('[Cache] Failed to save tvlistUrl', e); }
         }
         loading.value = false;
         return result;
