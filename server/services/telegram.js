@@ -6,9 +6,9 @@ import { escapeHTML } from '../lib/utils.js';
 const LIST_PAGES = new Map();
 const ITEMS_PER_PAGE = 15;
 
-function sendAdminMenu(chatId) {
+function buildAdminMenu(chatId, msgId) {
   const s = computeStats();
-  const msg = [
+  const text = [
     `🛠️ <b>Admin Panel — Actions rapides</b>`,
     ``,
     `👥 Visites: <b>${s.totalVisits}</b>  |  🌐 IP uniques: <b>${s.uniqueIPs}</b>`,
@@ -30,16 +30,18 @@ function sendAdminMenu(chatId) {
     ],
   ];
 
-  if (config.BOT_TOKEN) {
-    return fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId, text: msg, parse_mode: 'HTML',
-        reply_markup: { inline_keyboard: keyboard },
-      }),
-    });
-  }
+  if (!config.BOT_TOKEN) return;
+  const url = msgId
+    ? `https://api.telegram.org/bot${config.BOT_TOKEN}/editMessageText`
+    : `https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`;
+  const body = msgId
+    ? { chat_id: chatId, message_id: msgId, text, parse_mode: 'HTML', reply_markup: { inline_keyboard: keyboard } }
+    : { chat_id: chatId, text, parse_mode: 'HTML', reply_markup: { inline_keyboard: keyboard } };
+  return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+}
+
+function sendAdminMenu(chatId) {
+  return buildAdminMenu(chatId, null);
 }
 
 function computeStats() {
@@ -670,15 +672,15 @@ export async function handleTelegramWebhook(update) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ callback_query_id: cq.id, text: '📊 Statistiques générées' }),
         });
-        if (chatId) {
+        if (chatId && msgId) {
           const statsKeyboard = [[
             { text: '🔙 Retour', callback_data: 'admin_back' },
             { text: '✖ Fermer', callback_data: 'admin_close' },
           ]];
-          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/editMessageText`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: { inline_keyboard: statsKeyboard } }),
+            body: JSON.stringify({ chat_id: chatId, message_id: msgId, text: msg, parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: { inline_keyboard: statsKeyboard } }),
           });
         }
       }
@@ -686,61 +688,34 @@ export async function handleTelegramWebhook(update) {
 
     } else if (data === 'admin_list') {
       LIST_PAGES.set(chatId, { page: 0, fromAdmin: true });
-      await sendListPage(chatId, 0);
       if (config.BOT_TOKEN) {
         await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ callback_query_id: cq.id, text: '📋 Liste générée' }),
         });
+        if (chatId && msgId) {
+          const { text, keyboard } = await buildList(0);
+          keyboard.push([{ text: '🔙 Retour Admin', callback_data: 'admin_back' }]);
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/editMessageText`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, message_id: msgId, text, parse_mode: 'HTML', reply_markup: { inline_keyboard: keyboard } }),
+          });
+        }
       }
       console.log('[Telegram] Admin list');
 
     } else if (data === 'admin_refresh') {
       loadBans();
       loadPremium();
-      const s = computeStats();
-      const updatedMsg = [
-        `🛠️ <b>Admin Panel — Actions rapides</b>`,
-        ``,
-        `✅ Données rafraîchies.`,
-        ``,
-        `👥 Visites: <b>${s.totalVisits}</b>  |  🌐 IP uniques: <b>${s.uniqueIPs}</b>`,
-        `🚫 Bannis: <b>${s.bans}</b>  |  💎 Premium: <b>${s.premiums}</b>  |  ✅ Whitelistés: <b>${s.whitelisted}</b>`,
-        `📢 Pubs aujourd'hui: <b>${s.adsToday}</b>  |  Total: <b>${s.adsTotal}</b>`,
-      ].join('\n');
-
       if (config.BOT_TOKEN) {
         await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ callback_query_id: cq.id, text: '✅ Données rafraîchies' }),
         });
-        if (chatId && msgId) {
-          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/editMessageText`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: chatId, message_id: msgId,
-              text: updatedMsg, parse_mode: 'HTML',
-                reply_markup: {
-                  inline_keyboard: [
-                    [
-                      { text: '📊 Stats', callback_data: 'admin_stats' },
-                      { text: '📋 Liste IPs', callback_data: 'admin_list' },
-                    ],
-                    [
-                      { text: '📢 Push Ad', callback_data: 'push_ad' },
-                      { text: '🔐 Panel Web', url: `${config.SITE_URL}/panel` },
-                    ],
-                    [
-                      { text: '🔄 Rafraîchir', callback_data: 'admin_refresh' },
-                    ],
-                  ],
-                },
-            }),
-          });
-        }
+        if (chatId && msgId) await buildAdminMenu(chatId, msgId);
       }
       console.log('[Telegram] Admin refresh');
     } else if (data === 'admin_back') {
@@ -751,7 +726,7 @@ export async function handleTelegramWebhook(update) {
           body: JSON.stringify({ callback_query_id: cq.id, text: '🔙 Retour au menu admin' }),
         });
       }
-      if (chatId) await sendAdminMenu(chatId);
+      if (chatId && msgId) await buildAdminMenu(chatId, msgId);
       console.log('[Telegram] Admin back');
     } else if (data === 'admin_close') {
       if (config.BOT_TOKEN) {
