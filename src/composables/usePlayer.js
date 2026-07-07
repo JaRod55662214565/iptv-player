@@ -27,7 +27,7 @@ export function usePlayer(sourceRef, localeRef) {
     }
     if (clean.endsWith('.mp4')) return 'video/mp4';
     if (clean.endsWith('.webm')) return 'video/webm';
-    if (clean.endsWith('.m3u8')) return 'application/x-mpegURL';
+    if (clean.endsWith('.m3u8') || clean.endsWith('.m3u')) return 'application/x-mpegURL';
     if (clean.endsWith('.mpd')) return 'application/dash+xml';
     if (clean.endsWith('.ts')) return 'video/MP2T';
     return 'application/x-mpegURL';
@@ -80,11 +80,12 @@ export function usePlayer(sourceRef, localeRef) {
 
         player.on('error', () => {
           isLoading.value = false;
+          const err = player.error();
+          console.error('[Player] Error:', err ? (err.code + ': ' + err.message) : 'unknown');
           if (retryCount < MAX_RETRIES && lastSrc.value) {
             retryCount++;
-            const url = lastSrc.value;
             setTimeout(() => {
-              if (player) playSrc(url, true);
+              if (player) playSrc(lastSrc.value, true);
             }, retryCount * 1000);
           }
         });
