@@ -32,6 +32,7 @@
         ref="videoRef"
         class="video-js vjs-big-play-centered vjs-default-skin"
         playsinline
+        crossorigin="anonymous"
       ></video>
     </div>
   </div>

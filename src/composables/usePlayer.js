@@ -14,13 +14,22 @@ export function usePlayer(sourceRef, localeRef) {
 
   const currentSrc = computed(() => sourceRef.value || '');
 
+  function proxyUrl(url) {
+    if (!url || url.startsWith('blob:') || url.startsWith('data:')) return url;
+    return `/api/proxy/stream?url=${encodeURIComponent(url)}`;
+  }
+
   function detectType(url) {
-    const ext = url.split('?')[0].toLowerCase();
-    if (ext.endsWith('.mp4')) return 'video/mp4';
-    if (ext.endsWith('.webm')) return 'video/webm';
-    if (ext.endsWith('.m3u8')) return 'application/x-mpegURL';
-    if (ext.endsWith('.mpd')) return 'application/dash+xml';
-    if (ext.endsWith('.ts')) return 'video/MP2T';
+    const clean = url.split('?')[0].toLowerCase();
+    if (clean.includes('proxy/stream')) {
+      const realUrl = decodeURIComponent(url.split('url=')[1] || '');
+      return detectType(realUrl);
+    }
+    if (clean.endsWith('.mp4')) return 'video/mp4';
+    if (clean.endsWith('.webm')) return 'video/webm';
+    if (clean.endsWith('.m3u8')) return 'application/x-mpegURL';
+    if (clean.endsWith('.mpd')) return 'application/dash+xml';
+    if (clean.endsWith('.ts')) return 'video/MP2T';
     return 'application/x-mpegURL';
   }
 
@@ -30,7 +39,7 @@ export function usePlayer(sourceRef, localeRef) {
     if (!force) retryCount = 0;
     player.error(null);
     player.src({
-      src: url,
+      src: proxyUrl(url),
       type: detectType(url),
       withCredentials: false,
     });

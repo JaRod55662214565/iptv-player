@@ -11,6 +11,7 @@ import { handleStripeRoutes } from './routes/stripe.js';
 import { handlePremiumRoutes } from './routes/premium.js';
 import { handleAdsRoutes } from './routes/ads.js';
 import { handleFavoritesRoutes } from './routes/favorites.js';
+import { handleProxyRoutes } from './routes/proxy.js';
 
 runBootValidation();
 
@@ -18,6 +19,7 @@ fs.mkdirSync(config.DATA_DIR, { recursive: true });
 loadState();
 
 const routes = [
+  handleProxyRoutes,
   handleTrackingRoutes,
   handleAdminRoutes,
   handleStripeRoutes,
