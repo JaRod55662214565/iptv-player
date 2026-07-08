@@ -72,11 +72,15 @@ export function useAdmin() {
     await loadAll();
   }
 
+  async function pushAd(ip) {
+    await adminApi.triggerPushAd(ip);
+  }
+
   return {
     authenticated, loading, loginError,
     visits, bans, premiums,
     datacenterCount, bannedCount, premiumCount,
     login, loadAll, loadVisits, loadBans, loadPremiums, ban, unban,
-    makePremium, removePremium,
+    makePremium, removePremium, pushAd,
   };
 }

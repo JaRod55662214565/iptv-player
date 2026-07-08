@@ -57,8 +57,13 @@ export async function handleAdsRoutes(pathname, req, res, body, url) {
     const now = Date.now();
     const active = status && (now - status < config.PUSH_EXPIRY_MS);
     if (status && !active) { state.PENDING_AD_PUSH = 0; state.PENDING_AD_PUSH_IP = null; }
-    // Si push ciblé par IP: vérifier que le client correspond
     const clientIP = getClientIP(req);
+    // Les premiums ne recoivent jamais de push ad, meme en global
+    if (state.PREMIUM_LOOKUP.has(clientIP)) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ pushAd: false, timestamp: 0 }));
+      return true;
+    }
     const isTargeted = state.PENDING_AD_PUSH_IP !== null;
     const matchesTarget = !isTargeted || state.PENDING_AD_PUSH_IP === clientIP;
     res.writeHead(200, { 'Content-Type': 'application/json' });

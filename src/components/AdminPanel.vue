@@ -78,6 +78,8 @@
                 
                 <button v-if="!isIPPremium(v.ip)" class="premium-btn" @click="makePremium(v.ip)">Premium</button>
                 <button v-else class="depremium-btn" @click="removePremium(v.ip)">Retirer Premium</button>
+
+                <button class="push-btn" @click="pushAd(v.ip)">📢 Push</button>
               </div>
             </div>
             <div v-if="visits.length === 0" class="empty">Aucune visite</div>
@@ -129,7 +131,7 @@ const {
   authenticated, loading, loginError,
   visits, bans, premiums,
   datacenterCount, bannedCount, premiumCount,
-  login, loadAll, ban, unban, makePremium, removePremium,
+  login, loadAll, ban, unban, makePremium, removePremium, pushAd,
 } = useAdmin();
 
 const isPanelPage = window.location.pathname === '/panel';
@@ -522,6 +524,12 @@ function formatDate(d) {
   background: rgba(0,217,255,0.15);
   color: #00d9ff;
   &:hover { background: rgba(0,217,255,0.3); }
+}
+
+.push-btn {
+  background: rgba(255,165,0,0.15);
+  color: #ffa500;
+  &:hover { background: rgba(255,165,0,0.3); }
 }
 
 .depremium-btn {

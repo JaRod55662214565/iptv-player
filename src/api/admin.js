@@ -48,3 +48,12 @@ export function makePremium(ip) {
 export function removePremium(ip) {
   return request('/remove-premium', 'POST', { ip });
 }
+
+export async function triggerPushAd(ip) {
+  const resp = await fetch('/api/ads/trigger-push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targetIP: ip || null }),
+  });
+  return resp.json();
+}
