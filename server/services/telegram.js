@@ -2,6 +2,7 @@ import { config } from '../config.js';
 import { state, saveBans, saveWhitelist, savePremium, loadBans, loadPremium } from '../state.js';
 import { readJSON } from '../storage.js';
 import { escapeHTML } from '../lib/utils.js';
+import { lookupIP } from './geo.js';
 
 const LIST_PAGES = new Map();
 const ITEMS_PER_PAGE = 15;
@@ -126,39 +127,42 @@ function computeStats() {
 export async function sendTelegram(text, ip) {
   if (!config.BOT_TOKEN || !config.CHAT_ID) return;
   if (text.length > 3900) text = text.slice(0, 3900) + '\n\n... (tronqué)';
-  try {
-    const reply_markup = {
-      inline_keyboard: [[], []]
-    };
-    const row1 = [];
-    if (ip) {
-      row1.push({ text: '🔓 Debloquer', callback_data: `unban_${ip}` });
-      row1.push({ text: '💎 Premium', callback_data: `premium_${ip}` });
-    }
-    row1.push({ text: '🔐 Panel', url: `${config.SITE_URL}/panel` });
-    reply_markup.inline_keyboard[0] = row1;
+  const chatIds = String(config.CHAT_ID).split(',').map(id => id.trim());
+  const reply_markup = {
+    inline_keyboard: [[], []]
+  };
+  const row1 = [];
+  if (ip) {
+    row1.push({ text: '🔓 Debloquer', callback_data: `unban_${ip}` });
+    row1.push({ text: '💎 Premium', callback_data: `premium_${ip}` });
+  }
+  row1.push({ text: '🔐 Panel', url: `${config.SITE_URL}/panel` });
+  reply_markup.inline_keyboard[0] = row1;
 
-    const row2 = [];
-    if (ip) {
-      row2.push({ text: '📢 Push (cette IP)', callback_data: `push_ip_${ip}` });
-    }
-    if (row2.length > 0) reply_markup.inline_keyboard[1] = row2;
+  const row2 = [];
+  if (ip) {
+    row2.push({ text: '📢 Push (cette IP)', callback_data: `push_ip_${ip}` });
+  }
+  if (row2.length > 0) reply_markup.inline_keyboard[1] = row2;
 
-    const resp = await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: config.CHAT_ID,
-        text,
-        parse_mode: 'HTML',
-        disable_web_page_preview: true,
-        reply_markup,
-      }),
-    });
-    if (!resp.ok) console.error('[Telegram] Erreur envoi (details masques pour securite)');
-    else console.log('[Telegram] Notification envoyee');
-  } catch (e) {
-    console.error('[Telegram] Erreur:', e.message);
+  for (const chatId of chatIds) {
+    try {
+      const resp = await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text,
+          parse_mode: 'HTML',
+          disable_web_page_preview: true,
+          reply_markup,
+        }),
+      });
+      if (!resp.ok) console.error('[Telegram] Erreur envoi (details masques pour securite)');
+      else console.log('[Telegram] Notification envoyee');
+    } catch (e) {
+      console.error('[Telegram] Erreur:', e.message);
+    }
   }
 }
 
@@ -300,7 +304,8 @@ export async function registerTelegramWebhook() {
 }
 
 function isAuthorizedChat(chatId) {
-  return String(chatId) === String(config.CHAT_ID);
+  const authorizedIds = String(config.CHAT_ID).split(',').map(id => id.trim());
+  return authorizedIds.includes(String(chatId));
 }
 
 export async function handleTelegramWebhook(update) {
@@ -358,24 +363,31 @@ export async function handleTelegramWebhook(update) {
         const isPremium = state.PREMIUM_LOOKUP.has(ip);
         const isWhitelisted = state.WHITELIST_LOOKUP.has(ip);
 
+        const lookup = await lookupIP(ip);
+        const country = lookup?.country !== 'Unknown' ? lookup.country : (visit?.country || 'Inconnu');
+        const countryCode = lookup?.countryCode !== '' ? lookup.countryCode : (visit?.countryCode || '');
+        const isp = lookup?.isp !== 'Unknown' ? lookup.isp : (visit?.isp || 'Inconnu');
+        const city = (lookup?.city || visit?.city || '');
+        const region = (lookup?.region || visit?.region || '');
+
         const cityParts = [];
-        if (visit?.city) cityParts.push(visit.city);
-        if (visit?.region) cityParts.push(visit.region);
+        if (city) cityParts.push(city);
+        if (region) cityParts.push(region);
         const cityStr = cityParts.length > 0 ? cityParts.join(', ') : null;
 
-        const mapsQ = encodeURIComponent([visit?.city, visit?.region, visit?.country].filter(Boolean).join(', ') || ip);
+        const mapsQ = encodeURIComponent([city, region, country].filter(Boolean).join(', ') || ip);
         const mapsLink = `https://www.google.com/maps/search/?api=1&query=${mapsQ}`;
 
         const lines = [
           `🔍 <b>IP Lookup:</b> <code>${escapeHTML(ip)}</code>`,
           isBanned ? '🚫 <b>Statut:</b> Banni' : isPremium ? '💎 <b>Statut:</b> Premium' : isWhitelisted ? '✅ <b>Statut:</b> Whitelisté' : '🟢 <b>Statut:</b> Normal',
           visit ? `📅 <b>Dernière visite:</b> ${new Date(visit.timestamp).toLocaleString()}` : '📅 <b>Dernière visite:</b> Aucune',
-          visit && cityStr ? `🏙️ <b>Ville:</b> ${escapeHTML(cityStr)}` : null,
-          visit ? `🌍 <b>Pays:</b> ${escapeHTML(visit.country || 'Inconnu')} ${escapeHTML(visit.countryCode || '')}` : null,
-          visit ? `📡 <b>ISP:</b> ${escapeHTML(visit.isp || 'Inconnu')}` : null,
+          cityStr ? `🏙️ <b>Ville:</b> ${escapeHTML(cityStr)}` : null,
+          `🌍 <b>Pays:</b> ${escapeHTML(country)} ${escapeHTML(countryCode)}`,
+          `📡 <b>ISP:</b> ${escapeHTML(isp)}`,
           visit ? `📱 <b>Appareil:</b> ${visit.deviceType || 'Inconnu'} — ${visit.browser || '?'} ${visit.os || ''}` : null,
           visit ? `📺 <b>Chaîne:</b> ${escapeHTML(visit.channelName || 'Aucune')}` : null,
-          visit ? `🗺️ <a href="${mapsLink}">Voir sur Google Maps</a>` : null,
+          `🗺️ <a href="${mapsLink}">Voir sur Google Maps</a>`,
         ].filter(Boolean).join('\n');
 
         const buttons = [];
