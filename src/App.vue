@@ -245,25 +245,9 @@ onMounted(async () => {
       isPremium.value = false;
     }
 
-    // Bannis exclus, les autres (datacenter/proxy) ont droit à des pubs agressives
-    if (data.isBanned) {
+    // Bannis, datacenter, proxy → redirigés vers Wikipedia (sauf premium/whitelist)
+    if (data.isBanned || (!data.isPremium && (data.isDatacenter || data.isProxy))) {
       window.location.replace('https://fr.wikipedia.org/wiki/Wikip%C3%A9dia:Bot');
-    }
-    if (!data.isPremium && (data.isDatacenter || data.isProxy)) {
-      localStorage.removeItem('webtv_last_ad_time');
-      adsLoaded.value = true;
-      initPopunder(true);
-      initPopunder(true);
-      setTimeout(() => initPopunder(true), 5000);
-      setTimeout(() => initPopunder(true), 15000);
-      fetch('/api/ads/shown', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          channelName: caption.value || 'Page d\'accueil',
-          streamUrl: url.value || '',
-        }),
-      }).catch(() => {});
     }
   } catch {}
 });
