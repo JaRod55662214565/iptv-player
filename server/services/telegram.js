@@ -77,8 +77,8 @@ function computeStats() {
 
   const countryCounts = {};
   for (const v of state.VISITS) {
-    if (v.country === 'Local') continue;
-    const c = v.countryCode || (v.country && v.country !== 'Unknown' ? v.country.slice(0, 2).toUpperCase() : '??');
+    if (v.country === 'Local' || v.country === 'Unknown') continue;
+    const c = v.countryCode || v.country.slice(0, 2).toUpperCase();
     countryCounts[c] = (countryCounts[c] || 0) + 1;
   }
   const topCountries = Object.entries(countryCounts)

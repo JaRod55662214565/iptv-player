@@ -43,7 +43,6 @@ async function handleVisit(req, body) {
 
   await serializeWrite(() => {
     state.VISITS.unshift(session);
-    if (state.VISITS.length > 200) state.VISITS.length = 200;
     writeJSON(config.VISITS_FILE, state.VISITS);
   });
 
