@@ -5,6 +5,7 @@ import { escapeHTML } from '../lib/utils.js';
 import { lookupIP } from './geo.js';
 
 const LIST_PAGES = new Map();
+const STATS_MSGS = new Map();
 const ITEMS_PER_PAGE = 15;
 
 function buildAdminMenu(chatId, msgId) {
@@ -123,6 +124,59 @@ function computeStats() {
     topBrowsers, topOS, topCountries, topChannels, topReferrers,
     bans, premiums, whitelisted, adsTotal, adsToday,
   };
+}
+
+function buildStatsMessage(fromAdmin) {
+  const s = computeStats();
+  const browsers = s.topBrowsers.map(([name, count]) => `  • ${name}: ${count}`).join('\n');
+  const oses = s.topOS.map(([name, count]) => `  • ${name}: ${count}`).join('\n');
+  const countries = s.topCountries.map(([cc, count]) => `  • ${cc}: ${count}`).join('\n');
+  const channels = s.topChannels.map(([name, count]) => `  • ${escapeHTML(name)}: ${count}`).join('\n');
+  const referrers = s.topReferrers.map(([name, count]) => `  • ${escapeHTML(name)}: ${count}`).join('\n');
+
+  const parts = [
+    `📊 <b>Statistiques WebTV</b>`,
+    ``,
+    `👥 <b>Visites</b>`,
+    `  • Total: <b>${s.totalVisits}</b>`,
+    `  • IP uniques: <b>${s.uniqueIPs}</b>`,
+    `  • Datacenters: ${s.datacenterCount}`,
+    `  • Proxys: ${s.proxyCount}`,
+    `  • Bannis: ${s.bannedCount}`,
+    ``,
+    `📱 <b>Appareils</b>`,
+    `  • Mobile: ${s.mobileCount}`,
+    `  • Tablette: ${s.tabletCount}`,
+    `  • Desktop: ${s.desktopCount}`,
+  ];
+  if (s.topBrowsers.length) parts.push(``, `🌐 <b>Navigateurs</b>`, browsers);
+  if (s.topOS.length) parts.push(``, `💿 <b>Systèmes</b>`, oses);
+  if (s.topCountries.length) parts.push(``, `🌍 <b>Pays</b>`, countries);
+  if (s.topChannels.length) parts.push(``, `📺 <b>Chaînes les + regardées</b>`, channels);
+  if (s.topReferrers.length) parts.push(``, `🔗 <b>D'où ils viennent</b>`, referrers);
+  parts.push(
+    ``,
+    `🔒 <b>Modération</b>`,
+    `  • Bannis: <b>${s.bans}</b>`,
+    `  • Premium: <b>${s.premiums}</b>`,
+    `  • Whitelistés: <b>${s.whitelisted}</b>`,
+    ``,
+    `📢 <b>Publicités</b>`,
+    `  • Total: <b>${s.adsTotal}</b>`,
+    `  • Aujourd'hui: <b>${s.adsToday}</b>`,
+  );
+  const text = parts.join('\n');
+
+  const row1 = [{ text: '🔄 Refresh', callback_data: 'stats_refresh' }];
+  if (fromAdmin) {
+    row1.push({ text: '📋 Liste IPs', callback_data: 'admin_list' });
+    row1.push({ text: '🔙 Retour', callback_data: 'admin_back' });
+  } else {
+    row1.push({ text: '📋 Liste IPs', callback_data: 'stats_list' });
+  }
+  const keyboard = [row1, [{ text: '✖ Fermer', callback_data: 'admin_close' }]];
+
+  return { text, keyboard };
 }
 
 export async function sendTelegram(text, ip) {
@@ -477,52 +531,17 @@ export async function handleTelegramWebhook(update) {
       if (!isAuthorizedChat(chatId)) {
         if (config.BOT_TOKEN) { await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `⛔ Accès refusé.`, parse_mode: 'HTML' }) }); }
       } else {
-      const s = computeStats();
-      const browsers = s.topBrowsers.map(([name, count]) => `  • ${name}: ${count}`).join('\n');
-      const oses = s.topOS.map(([name, count]) => `  • ${name}: ${count}`).join('\n');
-      const countries = s.topCountries.map(([cc, count]) => `  • ${cc}: ${count}`).join('\n');
-      const channels = s.topChannels.map(([name, count]) => `  • ${escapeHTML(name)}: ${count}`).join('\n');
-      const referrers = s.topReferrers.map(([name, count]) => `  • ${escapeHTML(name)}: ${count}`).join('\n');
-
-      const parts = [
-        `📊 <b>Statistiques WebTV</b>`,
-        ``,
-        `👥 <b>Visites</b>`,
-        `  • Total: <b>${s.totalVisits}</b>`,
-        `  • IP uniques: <b>${s.uniqueIPs}</b>`,
-        `  • Datacenters: ${s.datacenterCount}`,
-        `  • Proxys: ${s.proxyCount}`,
-        `  • Bannis: ${s.bannedCount}`,
-        ``,
-        `📱 <b>Appareils</b>`,
-        `  • Mobile: ${s.mobileCount}`,
-        `  • Tablette: ${s.tabletCount}`,
-        `  • Desktop: ${s.desktopCount}`,
-      ];
-      if (s.topBrowsers.length) parts.push(``, `🌐 <b>Navigateurs</b>`, browsers);
-      if (s.topOS.length) parts.push(``, `💿 <b>Systèmes</b>`, oses);
-      if (s.topCountries.length) parts.push(``, `🌍 <b>Pays</b>`, countries);
-      if (s.topChannels.length) parts.push(``, `📺 <b>Chaînes les + regardées</b>`, channels);
-      if (s.topReferrers.length) parts.push(``, `🔗 <b>D'où ils viennent</b>`, referrers);
-      parts.push(
-        ``,
-        `🔒 <b>Modération</b>`,
-        `  • Bannis: <b>${s.bans}</b>`,
-        `  • Premium: <b>${s.premiums}</b>`,
-        `  • Whitelistés: <b>${s.whitelisted}</b>`,
-        ``,
-        `📢 <b>Publicités</b>`,
-        `  • Total: <b>${s.adsTotal}</b>`,
-        `  • Aujourd'hui: <b>${s.adsToday}</b>`,
-      );
-      const msg = parts.join('\n');
-
+      const { text, keyboard } = buildStatsMessage(false);
       if (config.BOT_TOKEN) {
-        await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+        const resp = await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML', disable_web_page_preview: true }),
+          body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: { inline_keyboard: keyboard } }),
         });
+        const sent = await resp.json();
+        if (sent.ok) {
+          STATS_MSGS.set(chatId, { msgId: sent.result.message_id });
+        }
       }
       console.log('[Telegram] /stats');
       }
@@ -683,47 +702,44 @@ export async function handleTelegramWebhook(update) {
         });
       }
       console.log('[Telegram] Push ad via callback');
+    } else if (data === 'stats_refresh') {
+      if (config.BOT_TOKEN) {
+        const { text, keyboard } = buildStatsMessage(false);
+        const stored = STATS_MSGS.get(chatId);
+        if (chatId && stored?.msgId) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/editMessageText`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, message_id: stored.msgId, text, parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: { inline_keyboard: keyboard } }),
+          });
+        }
+        await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callback_query_id: cq.id, text: '🔄 Stats mises à jour' }),
+        });
+      }
+      console.log('[Telegram] Stats refresh');
+    } else if (data === 'stats_list') {
+      LIST_PAGES.set(chatId, { page: 0, filter: 'all', fromAdmin: false });
+      if (config.BOT_TOKEN) {
+        await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callback_query_id: cq.id, text: '📋 Liste générée' }),
+        });
+        if (chatId && msgId) {
+          const { text, keyboard } = await buildList('all', 0);
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/editMessageText`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, message_id: msgId, text, parse_mode: 'HTML', reply_markup: { inline_keyboard: keyboard } }),
+          });
+        }
+      }
+      console.log('[Telegram] Stats -> list');
     } else if (data === 'admin_stats') {
-      const s = computeStats();
-      const browsers = s.topBrowsers.map(([name, count]) => `  • ${name}: ${count}`).join('\n');
-      const oses = s.topOS.map(([name, count]) => `  • ${name}: ${count}`).join('\n');
-      const countries = s.topCountries.map(([cc, count]) => `  • ${cc}: ${count}`).join('\n');
-      const channels = s.topChannels.map(([name, count]) => `  • ${escapeHTML(name)}: ${count}`).join('\n');
-      const referrers = s.topReferrers.map(([name, count]) => `  • ${escapeHTML(name)}: ${count}`).join('\n');
-
-      const statParts = [
-        `📊 <b>Statistiques WebTV</b>`,
-        ``,
-        `👥 <b>Visites</b>`,
-        `  • Total: <b>${s.totalVisits}</b>`,
-        `  • IP uniques: <b>${s.uniqueIPs}</b>`,
-        `  • Datacenters: ${s.datacenterCount}`,
-        `  • Proxys: ${s.proxyCount}`,
-        `  • Bannis: ${s.bannedCount}`,
-        ``,
-        `📱 <b>Appareils</b>`,
-        `  • Mobile: ${s.mobileCount}`,
-        `  • Tablette: ${s.tabletCount}`,
-        `  • Desktop: ${s.desktopCount}`,
-      ];
-      if (s.topBrowsers.length) statParts.push(``, `🌐 <b>Navigateurs</b>`, browsers);
-      if (s.topOS.length) statParts.push(``, `💿 <b>Systèmes</b>`, oses);
-      if (s.topCountries.length) statParts.push(``, `🌍 <b>Pays</b>`, countries);
-      if (s.topChannels.length) statParts.push(``, `📺 <b>Chaînes les + regardées</b>`, channels);
-      if (s.topReferrers.length) statParts.push(``, `🔗 <b>D'où ils viennent</b>`, referrers);
-      statParts.push(
-        ``,
-        `🔒 <b>Modération</b>`,
-        `  • Bannis: <b>${s.bans}</b>`,
-        `  • Premium: <b>${s.premiums}</b>`,
-        `  • Whitelistés: <b>${s.whitelisted}</b>`,
-        ``,
-        `📢 <b>Publicités</b>`,
-        `  • Total: <b>${s.adsTotal}</b>`,
-        `  • Aujourd'hui: <b>${s.adsToday}</b>`,
-      );
-      const msg = statParts.join('\n');
-
+      const { text, keyboard } = buildStatsMessage(true);
       if (config.BOT_TOKEN) {
         await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
           method: 'POST',
@@ -731,14 +747,10 @@ export async function handleTelegramWebhook(update) {
           body: JSON.stringify({ callback_query_id: cq.id, text: '📊 Statistiques générées' }),
         });
         if (chatId && msgId) {
-          const statsKeyboard = [[
-            { text: '🔙 Retour', callback_data: 'admin_back' },
-            { text: '✖ Fermer', callback_data: 'admin_close' },
-          ]];
           await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/editMessageText`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: chatId, message_id: msgId, text: msg, parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: { inline_keyboard: statsKeyboard } }),
+            body: JSON.stringify({ chat_id: chatId, message_id: msgId, text, parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: { inline_keyboard: keyboard } }),
           });
         }
       }
