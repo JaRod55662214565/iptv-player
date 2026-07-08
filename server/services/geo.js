@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { config } from '../config.js';
 import { state } from '../state.js';
-import { cidrToRange } from '../lib/utils.js';
+import { cidrToRange, escapeHTML } from '../lib/utils.js';
 
 function loadRanges(text) {
   return text.trim().split('\n')
