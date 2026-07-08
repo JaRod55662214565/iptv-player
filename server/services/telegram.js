@@ -167,8 +167,8 @@ export async function sendTelegram(text, ip) {
   }
 }
 
-async function sendListPage(chatId, page) {
-  const { text, keyboard } = await buildList(page);
+async function sendListPage(chatId, page, filter) {
+  const { text, keyboard } = await buildList(filter || 'all', page);
   const info = LIST_PAGES.get(chatId);
   if (info?.fromAdmin) keyboard.push([{ text: '🔙 Retour Admin', callback_data: 'admin_back' }]);
   if (config.BOT_TOKEN) {
@@ -178,10 +178,9 @@ async function sendListPage(chatId, page) {
       body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', reply_markup: { inline_keyboard: keyboard } }),
     });
   }
-  console.log(`[Telegram] /list page ${page}`);
 }
 
-async function buildList(page) {
+async function buildList(filter, page) {
   const bans = readJSON(config.BANS_FILE);
   const premiums = readJSON(config.PREMIUM_FILE);
   const premiumIPs = new Set(premiums.map(p => p.ip));
@@ -198,61 +197,103 @@ async function buildList(page) {
 
   const basicIPs = allIPs.filter(v => !premiumIPs.has(v.ip) && !banIPs.has(v.ip));
 
-  const totalPages = Math.max(
-    Math.ceil(premiums.length / ITEMS_PER_PAGE),
-    Math.ceil(bans.length / ITEMS_PER_PAGE),
-    Math.ceil(basicIPs.length / ITEMS_PER_PAGE),
-    1
-  );
+  let totalPages, headerLabel;
+  switch (filter) {
+    case 'premium':
+      totalPages = Math.max(Math.ceil(premiums.length / ITEMS_PER_PAGE), 1);
+      headerLabel = `💎 <b>VIP — Premium (${premiums.length})</b>`;
+      break;
+    case 'ban':
+      totalPages = Math.max(Math.ceil(bans.length / ITEMS_PER_PAGE), 1);
+      headerLabel = `🚫 <b>Bloqués (${bans.length})</b>`;
+      break;
+    case 'basic':
+      totalPages = Math.max(Math.ceil(basicIPs.length / ITEMS_PER_PAGE), 1);
+      headerLabel = `🟢 <b>Basic — Visiteurs (${basicIPs.length})</b>`;
+      break;
+    default:
+      totalPages = Math.max(
+        Math.ceil(premiums.length / ITEMS_PER_PAGE),
+        Math.ceil(bans.length / ITEMS_PER_PAGE),
+        Math.ceil(basicIPs.length / ITEMS_PER_PAGE),
+        1
+      );
+      headerLabel = `📋 <b>Liste des IPs</b>`;
+  }
 
   const p = Math.max(0, Math.min(page, totalPages - 1));
   const start = p * ITEMS_PER_PAGE;
   const end = start + ITEMS_PER_PAGE;
 
-  const premiumLines = premiums.length > 0
-    ? premiums.slice(start, end).map(x => `💎 <code>${escapeHTML(x.ip)}</code> (${new Date(x.date).toLocaleDateString()})`).join('\n')
-    : 'Aucun.';
+  let text;
 
-  const banLines = bans.length > 0
-    ? bans.slice(start, end).map(b => `🚫 <code>${escapeHTML(b.ip)}</code>${b.reason ? ` — ${escapeHTML(b.reason)}` : ''}`).join('\n')
-    : 'Aucun.';
+  function formatPremium(x) { return `💎 <code>${escapeHTML(x.ip)}</code> (${new Date(x.date).toLocaleDateString()})`; }
+  function formatBan(b) { return `🚫 <code>${escapeHTML(b.ip)}</code>${b.reason ? ` — ${escapeHTML(b.reason)}` : ''}`; }
+  function formatBasic(v) {
+    const loc = v.countryCode ? `[${v.countryCode}]` : '';
+    const locName = v.country || '?';
+    return `🟢 <code>${escapeHTML(v.ip)}</code> ${loc} ${locName}`;
+  }
 
-  const basicLines = basicIPs.length > 0
-    ? basicIPs.slice(start, end).map(v => {
-        const loc = v.countryCode ? `[${v.countryCode}]` : '';
-        const locName = v.country || '?';
-        return `🟢 <code>${escapeHTML(v.ip)}</code> ${loc} ${locName}`;
-      }).join('\n')
-    : 'Aucun.';
+  if (filter === 'all') {
+    const premiumLines = premiums.length > 0
+      ? premiums.slice(start, end).map(formatPremium).join('\n') : 'Aucun.';
+    const banLines = bans.length > 0
+      ? bans.slice(start, end).map(formatBan).join('\n') : 'Aucun.';
+    const basicLines = basicIPs.length > 0
+      ? basicIPs.slice(start, end).map(formatBasic).join('\n') : 'Aucun.';
 
-  const text = [
-    `📋 <b>Liste des IPs — Page ${p + 1}/${totalPages}</b>`,
-    ``,
-    `💎 <b>VIP — Premium (${premiums.length})</b>`,
-    premiumLines,
-    ``,
-    `🚫 <b>Bloqués (${bans.length})</b>`,
-    banLines,
-    ``,
-    `🟢 <b>Basic — Visiteurs (${basicIPs.length})</b>`,
-    basicLines,
-    ``,
-    `━━━━━━━━━━━━━`,
-    `📊 <b>Résumé</b>`,
-    `💎 VIP: ${premiums.length}  🚫 Bloqués: ${bans.length}  🟢 Basic: ${basicIPs.length}`,
-  ].filter(Boolean).join('\n');
+    text = [
+      `${headerLabel} — Page ${p + 1}/${totalPages}`,
+      ``,
+      `💎 <b>VIP — Premium (${premiums.length})</b>`,
+      premiumLines,
+      ``,
+      `🚫 <b>Bloqués (${bans.length})</b>`,
+      banLines,
+      ``,
+      `🟢 <b>Basic — Visiteurs (${basicIPs.length})</b>`,
+      basicLines,
+      ``,
+      `━━━━━━━━━━━━━`,
+      `📊 <b>Résumé</b>`,
+      `💎 VIP: ${premiums.length}  🚫 Bloqués: ${bans.length}  🟢 Basic: ${basicIPs.length}`,
+    ].filter(Boolean).join('\n');
+  } else {
+    const items = filter === 'premium' ? premiums : filter === 'ban' ? bans : basicIPs;
+    const formatter = filter === 'premium' ? formatPremium : filter === 'ban' ? formatBan : formatBasic;
+    const lines = items.length > 0
+      ? items.slice(start, end).map(formatter).join('\n') : 'Aucun.';
 
-  const keyboard = [[
-    { text: '←', callback_data: 'list_prev' },
-    { text: '✖ Fermer', callback_data: 'list_close' },
-    { text: '→', callback_data: 'list_next' },
-  ]];
+    text = [
+      `${headerLabel} — Page ${p + 1}/${totalPages}`,
+      ``,
+      lines,
+      ``,
+      `━━━━━━━━━━━━━`,
+      `📊 <b>Résumé</b>`,
+      `💎 VIP: ${premiums.length}  🚫 Bloqués: ${bans.length}  🟢 Basic: ${basicIPs.length}`,
+    ].filter(Boolean).join('\n');
+  }
+
+  const keyboard = [
+    [
+      { text: `💎 VIP ${premiums.length}`, callback_data: filter === 'premium' ? 'list_filter_all' : 'list_filter_premium' },
+      { text: `🟢 Basic ${basicIPs.length}`, callback_data: filter === 'basic' ? 'list_filter_all' : 'list_filter_basic' },
+      { text: `🚫 Bloqués ${bans.length}`, callback_data: filter === 'ban' ? 'list_filter_all' : 'list_filter_ban' },
+    ],
+    [
+      { text: '←', callback_data: 'list_prev' },
+      { text: filter === 'all' ? '✖ Fermer' : '↩ Tous', callback_data: filter === 'all' ? 'list_close' : 'list_filter_all' },
+      { text: '→', callback_data: 'list_next' },
+    ],
+  ];
 
   return { text, keyboard, totalPages, page: p };
 }
 
-async function editListMessage(chatId, msgId, page) {
-  const { text, keyboard } = await buildList(page);
+async function editListMessage(chatId, msgId, page, filter) {
+  const { text, keyboard } = await buildList(filter || 'all', page);
   const info = LIST_PAGES.get(chatId);
   if (info?.fromAdmin) keyboard.push([{ text: '🔙 Retour Admin', callback_data: 'admin_back' }]);
   if (config.BOT_TOKEN) {
@@ -429,8 +470,8 @@ export async function handleTelegramWebhook(update) {
       if (!isAuthorizedChat(chatId)) {
         if (config.BOT_TOKEN) { await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `⛔ Accès refusé.`, parse_mode: 'HTML' }) }); }
       } else {
-        LIST_PAGES.set(chatId, { page: 0, fromAdmin: false });
-        sendListPage(chatId, 0);
+        LIST_PAGES.set(chatId, { page: 0, filter: 'all', fromAdmin: false });
+        sendListPage(chatId, 0, 'all');
       }
     } else if (cmd === '/stats') {
       if (!isAuthorizedChat(chatId)) {
@@ -704,7 +745,7 @@ export async function handleTelegramWebhook(update) {
       console.log('[Telegram] Admin stats');
 
     } else if (data === 'admin_list') {
-      LIST_PAGES.set(chatId, { page: 0, fromAdmin: true });
+      LIST_PAGES.set(chatId, { page: 0, filter: 'all', fromAdmin: true });
       if (config.BOT_TOKEN) {
         await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
           method: 'POST',
@@ -712,7 +753,7 @@ export async function handleTelegramWebhook(update) {
           body: JSON.stringify({ callback_query_id: cq.id, text: '📋 Liste générée' }),
         });
         if (chatId && msgId) {
-          const { text, keyboard } = await buildList(0);
+          const { text, keyboard } = await buildList('all', 0);
           keyboard.push([{ text: '🔙 Retour Admin', callback_data: 'admin_back' }]);
           await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/editMessageText`, {
             method: 'POST',
@@ -761,6 +802,34 @@ export async function handleTelegramWebhook(update) {
         }
       }
       console.log('[Telegram] Message fermé');
+    } else if (data.startsWith('list_filter_')) {
+      if (!isAuthorizedChat(chatId)) {
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callback_query_id: cq.id, text: '⛔ Accès refusé.', show_alert: true }),
+          });
+        }
+      } else {
+        const targetFilter = data.replace('list_filter_', '');
+        const cur = (LIST_PAGES.get(chatId) || {}).page || 0;
+        const { page: clampedPage } = await buildList(targetFilter, 0);
+        const info = LIST_PAGES.get(chatId) || { fromAdmin: false };
+        LIST_PAGES.set(chatId, { page: clampedPage, filter: targetFilter, fromAdmin: info.fromAdmin });
+        if (config.BOT_TOKEN) {
+          const label = targetFilter === 'premium' ? '💎 VIP' : targetFilter === 'ban' ? '🚫 Bloqués' : targetFilter === 'basic' ? '🟢 Basic' : '📋 Tous';
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callback_query_id: cq.id, text: `${label}` }),
+          });
+          if (chatId && msgId) {
+            await editListMessage(chatId, msgId, clampedPage, targetFilter);
+          }
+        }
+        console.log(`[Telegram] List filter -> ${targetFilter}`);
+      }
     } else if (data === 'list_prev' || data === 'list_next') {
       if (!isAuthorizedChat(chatId)) {
         if (config.BOT_TOKEN) {
@@ -772,10 +841,11 @@ export async function handleTelegramWebhook(update) {
         }
       } else {
         const cur = (LIST_PAGES.get(chatId) || {}).page || 0;
+        const curFilter = (LIST_PAGES.get(chatId) || {}).filter || 'all';
         const requested = data === 'list_prev' ? cur - 1 : cur + 1;
-        const { page: clampedPage } = await buildList(requested);
+        const { page: clampedPage } = await buildList(curFilter, requested);
         const info = LIST_PAGES.get(chatId) || { fromAdmin: false };
-        LIST_PAGES.set(chatId, { page: clampedPage, fromAdmin: info.fromAdmin });
+        LIST_PAGES.set(chatId, { page: clampedPage, filter: curFilter, fromAdmin: info.fromAdmin });
         if (config.BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
             method: 'POST',
@@ -783,10 +853,10 @@ export async function handleTelegramWebhook(update) {
             body: JSON.stringify({ callback_query_id: cq.id, text: `Page ${clampedPage + 1}` }),
           });
           if (chatId && msgId) {
-            await editListMessage(chatId, msgId, clampedPage);
+            await editListMessage(chatId, msgId, clampedPage, curFilter);
           }
         }
-        console.log(`[Telegram] List nav -> page ${clampedPage}`);
+        console.log(`[Telegram] List nav -> page ${clampedPage} (${curFilter})`);
       }
     }
   }
