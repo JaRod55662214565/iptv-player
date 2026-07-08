@@ -38,7 +38,7 @@ export async function downloadBlocklist() {
 
 export async function lookupIP(ip) {
   if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') {
-    return { ip, country: 'Local', isp: 'Localhost', isProxy: false, isHosting: false, isMobile: false };
+    return { ip, country: 'Local', countryCode: 'LO', isp: 'Localhost', isProxy: false, isHosting: false, isMobile: false };
   }
   try {
     const resp = await fetch(`http://ip-api.com/json/${ip}?fields=status,query,isp,org,country,countryCode,city,regionName,proxy,hosting,mobile`, {

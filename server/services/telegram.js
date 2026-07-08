@@ -77,7 +77,8 @@ function computeStats() {
 
   const countryCounts = {};
   for (const v of state.VISITS) {
-    const c = v.countryCode || '??';
+    if (v.country === 'Local') continue;
+    const c = v.countryCode || (v.country && v.country !== 'Unknown' ? v.country.slice(0, 2).toUpperCase() : '??');
     countryCounts[c] = (countryCounts[c] || 0) + 1;
   }
   const topCountries = Object.entries(countryCounts)
@@ -217,7 +218,11 @@ async function buildList(page) {
     : 'Aucun.';
 
   const basicLines = basicIPs.length > 0
-    ? basicIPs.slice(start, end).map(v => `🟢 <code>${escapeHTML(v.ip)}</code> (${v.country || '?'})`).join('\n')
+    ? basicIPs.slice(start, end).map(v => {
+        const loc = v.countryCode ? `[${v.countryCode}]` : '';
+        const locName = v.country || '?';
+        return `🟢 <code>${escapeHTML(v.ip)}</code> ${loc} ${locName}`;
+      }).join('\n')
     : 'Aucun.';
 
   const text = [
