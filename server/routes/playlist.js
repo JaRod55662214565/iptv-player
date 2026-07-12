@@ -12,7 +12,7 @@ const IPTV_SOURCES = {
 };
 
 const COUNTRY_CODES = {
-  fr: 'fr', gb: 'gb', de: 'de', nl: 'nl', pt: 'pt', tn: 'tn',
+  fr: 'fr', de: 'de', nl: 'nl', pt: 'pt', tn: 'tn',
 };
 
 function getPlaylistUrl(params) {

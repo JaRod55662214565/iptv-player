@@ -79,8 +79,10 @@ const server = http.createServer(async (req, res) => {
     res.end('Not found');
   } catch (err) {
     console.error('[Server]', err);
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Bad request' }));
+    if (!res.writableEnded && !res.headersSent) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Bad request' }));
+    }
   }
 });
 
