@@ -566,16 +566,18 @@ export async function handleTelegramWebhook(update) {
         const pass = config.PLAYLIST_PASSWORD;
         const auth = (user && pass) ? `${user}:${pass}@` : '';
         const host = config.SITE_URL.replace(/^https?:\/\//, '');
-        const allUrl = `http://${auth}${host}/api/playlist.m3u`;
-        const frUrl = `http://${auth}${host}/api/playlist.m3u?country=fr`;
+        const allUrl = `https://${auth}${host}/api/playlist.m3u`;
+        const frUrl = `https://${auth}${host}/api/playlist.m3u?country=fr`;
+        const publicUrl = `https://${host}/api/playlist-public.m3u`;
         let msg;
         if (cmd === '/smarters') {
           msg = [
-            `📱 <b>IPTV Smarters Pro — Setup</b>`,
+            `📱 <b>IPTV Smarters Pro — Setup M3U</b>`,
             ``,
             `1️⃣ Ouvrir IPTV Smarters Pro`,
-            `2️⃣ Choisir <b>"M3U Playlist"</b> (pas Xtream Codes)`,
-            `3️⃣ Coller l'un des liens ci-dessous :`,
+            `2️⃣ Sélectionner <b>"Login with M3U Playlist"</b>`,
+            `3️⃣ Dans <b>Playlist Name</b> : entrer un nom (ex: 1TR4CK)`,
+            `4️⃣ Dans <b>M3U URL</b> coller le lien :`,
             ``,
             `🔗 <b>Toutes les chaînes :</b>`,
             `<code>${allUrl}</code>`,
@@ -583,8 +585,10 @@ export async function handleTelegramWebhook(update) {
             `🇫🇷 <b>France uniquement :</b>`,
             `<code>${frUrl}</code>`,
             ``,
-            `4️⃣ Nommer la playlist puis valider`,
-            `5️⃣ attendre le chargement et profiter 🎬`,
+            `5️⃣ Appuyer sur <b>"Add User"</b>`,
+            `6️⃣ Attendre le chargement puis profiter 🎬`,
+            ``,
+            `⚠️ Pas de champ EPG disponible.`,
           ].join('\n');
         } else {
           msg = [
@@ -595,6 +599,11 @@ export async function handleTelegramWebhook(update) {
             ``,
             `🇫🇷 <b>France uniquement :</b>`,
             `<code>${frUrl}</code>`,
+            ``,
+            `🔓 <b>Partage (sans auth) :</b>`,
+            `<code>${publicUrl}</code>`,
+            ``,
+            `<i>Compatible VLC, Kodi, IPTV Smarters, TiviMate…</i>`,
           ].join('\n');
         }
         if (config.BOT_TOKEN) {
