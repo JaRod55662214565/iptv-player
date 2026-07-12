@@ -633,6 +633,18 @@ export async function handleTelegramWebhook(update) {
     const data = cq.data || '';
     const chatId = cq.message?.chat?.id;
     const msgId = cq.message?.message_id;
+
+    if (!isAuthorizedChat(chatId)) {
+      if (config.BOT_TOKEN) {
+        await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callback_query_id: cq.id, text: '⛔ Accès refusé.', show_alert: true }),
+        });
+      }
+      return;
+    }
+
     console.log(`[Telegram] Callback recu: ${data}`);
     if (data.startsWith('unban_')) {
       const ip = data.slice(6);

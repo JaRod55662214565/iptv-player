@@ -192,7 +192,7 @@ async function handleConnect() {
     }).catch(() => {});
   } catch (e) {
     console.error('[Settings] IPTV connect error:', e);
-    alert('Erreur de connexion. Vérifiez vos identifiants.');
+    alert(t('connectError'));
   } finally {
     connecting.value = false;
   }

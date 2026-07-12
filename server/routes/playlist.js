@@ -1,10 +1,12 @@
 import { config } from '../config.js';
+import { getClientIP, checkRateLimit } from '../lib/utils.js';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 
 const CACHE_TTL = 3600000;
 const cache = new Map();
 const REFRESH_INTERVAL = 6 * 60 * 60 * 1000;
+const playlistRateLimits = new Map();
 
 const IPTV_SOURCES = {
   all: 'https://iptv-org.github.io/iptv/index.m3u',
@@ -181,6 +183,13 @@ export async function handlePlaylistRoutes(pathname, req, res) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.writeHead(405, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Method not allowed' }));
+    return true;
+  }
+
+  const clientIP = getClientIP(req);
+  if (!checkRateLimit(playlistRateLimits, clientIP, 30, 60000)) {
+    res.writeHead(429, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Too many requests' }));
     return true;
   }
 

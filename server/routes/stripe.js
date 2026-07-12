@@ -45,7 +45,7 @@ export async function handleStripeRoutes(pathname, req, res, body) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ url: session.url }));
     } catch (err) {
-      console.error('[Stripe Error]', err);
+      console.error('[Stripe Error]', err?.message || err);
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Payment processing error' }));
     }
