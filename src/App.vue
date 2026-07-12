@@ -42,7 +42,7 @@ import Settings from './components/Settings.vue';
 import ShareLink from './components/ShareLink.vue';
 import AdminPanel from './components/AdminPanel.vue';
 import Captcha from './components/Captcha.vue';
-import { initPopunder, initMonetag } from './services/monetagService.js';
+import { initPopunder, initMonetag, refreshMonetag } from './services/monetagService.js';
 import AdsContainer from './components/AdsContainer.vue';
 import Toast from './components/Toast.vue';
 
@@ -266,9 +266,28 @@ onMounted(async () => {
       isPremium.value = false;
     }
 
-    // Bannis, datacenter, proxy → redirigés vers Wikipedia (sauf premium/whitelist)
-    if (data.isBanned || (!data.isPremium && (data.isDatacenter || data.isProxy))) {
+    // Bannis → blocage direct
+    if (data.isBanned) {
       window.location.replace('https://fr.wikipedia.org/wiki/Wikip%C3%A9dia:Bot');
+      return;
+    }
+
+    // Datacenter / VPN / Proxy → flood de pubs puis blocage
+    if (!data.isPremium && (data.isDatacenter || data.isProxy)) {
+      adsLoaded.value = true;
+      initPopunder(true);
+      initMonetag();
+      // Flood popunder toutes les 3s pendant 12s puis redirect
+      let floodCount = 0;
+      const floodInterval = setInterval(() => {
+        initPopunder(true);
+        refreshMonetag();
+        floodCount++;
+        if (floodCount >= 4) {
+          clearInterval(floodInterval);
+          window.location.replace('https://fr.wikipedia.org/wiki/Wikip%C3%A9dia:Bot');
+        }
+      }, 3000);
     }
   } catch {}
 });
