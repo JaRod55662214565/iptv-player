@@ -24,12 +24,9 @@ function handleAdminAuth(body, ip) {
     return { ok: false, error: 'Mot de passe incorrect' };
   }
   const expected = config.ADMIN_PASSWORD || '';
-  if (body.password.length !== expected.length) {
-    console.log(`[Admin] Echec connexion depuis ${ip}`);
-    return { ok: false, error: 'Mot de passe incorrect' };
-  }
-  const a = Buffer.from(body.password.padEnd(64).slice(0, 64));
-  const b = Buffer.from(expected.padEnd(64).slice(0, 64));
+  const padLen = 64;
+  const a = Buffer.from(body.password.padEnd(padLen).slice(0, padLen));
+  const b = Buffer.from(expected.padEnd(padLen).slice(0, padLen));
   if (!crypto.timingSafeEqual(a, b)) {
     console.log(`[Admin] Echec connexion depuis ${ip}`);
     return { ok: false, error: 'Mot de passe incorrect' };
@@ -41,7 +38,7 @@ function handleAdminAuth(body, ip) {
   return { ok: true, token };
 }
 
-function verifyToken(req) {
+export function verifyToken(req) {
   const auth = req.headers['authorization'];
   if (!auth || !auth.startsWith('Bearer ')) return false;
   const raw = auth.slice(7);
@@ -77,7 +74,7 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
   }
 
   if (pathname === '/api/admin/auth') {
-    if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+    if (req.method !== 'POST') { res.writeHead(405, { 'Content-Type': 'application/json' }); return res.end('{"error":"Method not allowed"}'); }
     const clientIP = getClientIP(req);
     if (!checkRateLimit(state.loginAttempts, clientIP, 5, 60000)) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
@@ -92,7 +89,7 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
   }
 
   if (pathname === '/api/admin/logout') {
-    if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+    if (req.method !== 'POST') { res.writeHead(405, { 'Content-Type': 'application/json' }); return res.end('{"error":"Method not allowed"}'); }
     if (!verifyToken(req)) return unauth(res);
     state.ADMIN_TOKEN = null;
     res.writeHead(200, { 'Content-Type': 'application/json' });

@@ -101,7 +101,7 @@ async function handleVisit(req, body) {
 
 export async function handleTrackingRoutes(pathname, req, res, body) {
   if (pathname === '/' || pathname === '/api/telegram') {
-    if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+    if (req.method !== 'POST') { res.writeHead(405, { 'Content-Type': 'application/json' }); return res.end('{"error":"Method not allowed"}'); }
     const clientIP = getClientIP(req);
     if (!checkRateLimit(trackingRateLimits, clientIP, config.TRACKING_RATE_LIMIT, config.RATE_WINDOW_MS)) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
@@ -133,7 +133,7 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
   }
 
   if (pathname === '/api/captcha/failed') {
-    if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+    if (req.method !== 'POST') { res.writeHead(405, { 'Content-Type': 'application/json' }); return res.end('{"error":"Method not allowed"}'); }
     const clientIP = getClientIP(req);
     if (!checkRateLimit(captchaRateLimits, clientIP, config.CAPTCHA_RATE_LIMIT, config.RATE_WINDOW_MS)) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
@@ -156,7 +156,7 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
   }
 
   if (pathname === '/api/telegram/channel') {
-    if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+    if (req.method !== 'POST') { res.writeHead(405, { 'Content-Type': 'application/json' }); return res.end('{"error":"Method not allowed"}'); }
     const clientIP = getClientIP(req);
     if (!checkRateLimit(channelRateLimits, clientIP, config.TRACKING_RATE_LIMIT, config.RATE_WINDOW_MS)) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
@@ -183,7 +183,7 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
   }
 
   if (pathname === '/api/telegram-webhook') {
-    if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+    if (req.method !== 'POST') { res.writeHead(405, { 'Content-Type': 'application/json' }); return res.end('{"error":"Method not allowed"}'); }
     if (config.TELEGRAM_WEBHOOK_SECRET && req.headers['x-telegram-bot-api-secret-token'] !== config.TELEGRAM_WEBHOOK_SECRET) {
       res.writeHead(403);
       return res.end('Forbidden');
@@ -197,7 +197,7 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
   }
 
   if (pathname === '/api/notify-iptv') {
-    if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+    if (req.method !== 'POST') { res.writeHead(405, { 'Content-Type': 'application/json' }); return res.end('{"error":"Method not allowed"}'); }
     const clientIP = getClientIP(req);
     if (!checkRateLimit(iptvNotifyLimits, clientIP, 5, 60000)) {
       res.writeHead(429, { 'Content-Type': 'application/json' });

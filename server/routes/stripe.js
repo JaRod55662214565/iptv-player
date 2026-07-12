@@ -10,7 +10,7 @@ export async function handleStripeRoutes(pathname, req, res, body) {
   if (!pathname.startsWith('/api/stripe')) return false;
 
   if (pathname === '/api/stripe/checkout-session') {
-    if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+    if (req.method !== 'POST') { res.writeHead(405, { 'Content-Type': 'application/json' }); return res.end('{"error":"Method not allowed"}'); }
     const clientIP = getClientIP(req);
     if (!checkRateLimit(stripeRateLimits, clientIP, config.STRIPE_RATE_LIMIT, config.RATE_WINDOW_MS)) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
@@ -53,7 +53,7 @@ export async function handleStripeRoutes(pathname, req, res, body) {
   }
 
   if (pathname === '/api/stripe/webhook') {
-    if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+    if (req.method !== 'POST') { res.writeHead(405, { 'Content-Type': 'application/json' }); return res.end('{"error":"Method not allowed"}'); }
     const stripe = getStripe();
     if (!stripe) { res.writeHead(500); return res.end(JSON.stringify({ error: 'Stripe not configured' })); }
     const sig = req.headers['stripe-signature'];

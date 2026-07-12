@@ -376,7 +376,7 @@ export async function registerTelegramWebhook() {
     if (data.ok) {
       console.log('[Telegram] Webhook registered:', webhookUrl);
     } else {
-      console.error('[Telegram] Webhook registration failed:', data);
+      console.error('[Telegram] Webhook registration failed:', JSON.stringify(data).replace(/bot\d+:.*?@/g, 'bot***@'));
     }
   } catch (e) {
     console.error('[Telegram] Webhook registration error (token masque pour securite)');
@@ -394,6 +394,8 @@ export async function registerTelegramWebhook() {
           { command: 'stats', description: 'Statistiques détaillées de la plateforme' },
           { command: 'ip', description: 'Interroger une IP (ex: /ip 1.2.3.4)' },
           { command: 'list', description: 'Lister les IPs Basic, VIP et bloquées' },
+          { command: 'playlist', description: 'Lien playlist M3U (VLC, Kodi, TiviMate…)' },
+          { command: 'smarters', description: 'Setup IPTV Smarters Pro' },
         ],
       }),
     });
@@ -421,6 +423,8 @@ export async function handleTelegramWebhook(update) {
         `📋 <code>/list</code> — Voir les IPs Basic, VIP et bloquées`,
         `🔍 <code>/ip &lt;adresse&gt;</code> — Interroger une IP`,
         `   Ex: <code>/ip 52.16.245.145</code>`,
+        `📺 <code>/playlist</code> — Lien playlist M3U (VLC, Kodi, TiviMate…)`,
+        `📱 <code>/smarters</code> — Instructions setup IPTV Smarters Pro`,
         `🛠️ <code>/admin</code> — Menu administration avec actions rapides`,
         ``,
         `📢 Les boutons inline sur les notifications permettent de :`,
@@ -552,6 +556,55 @@ export async function handleTelegramWebhook(update) {
       } else {
       await sendAdminMenu(chatId);
       console.log('[Telegram] /admin');
+      }
+
+    } else if (cmd === '/playlist' || cmd === '/smarters') {
+      if (!isAuthorizedChat(chatId)) {
+        if (config.BOT_TOKEN) { await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `⛔ Accès refusé.`, parse_mode: 'HTML' }) }); }
+      } else {
+        const user = config.PLAYLIST_USER;
+        const pass = config.PLAYLIST_PASSWORD;
+        const auth = (user && pass) ? `${user}:${pass}@` : '';
+        const host = config.SITE_URL.replace(/^https?:\/\//, '');
+        const allUrl = `http://${auth}${host}/api/playlist.m3u`;
+        const frUrl = `http://${auth}${host}/api/playlist.m3u?country=fr`;
+        let msg;
+        if (cmd === '/smarters') {
+          msg = [
+            `📱 <b>IPTV Smarters Pro — Setup</b>`,
+            ``,
+            `1️⃣ Ouvrir IPTV Smarters Pro`,
+            `2️⃣ Choisir <b>"M3U Playlist"</b> (pas Xtream Codes)`,
+            `3️⃣ Coller l'un des liens ci-dessous :`,
+            ``,
+            `🔗 <b>Toutes les chaînes :</b>`,
+            `<code>${allUrl}</code>`,
+            ``,
+            `🇫🇷 <b>France uniquement :</b>`,
+            `<code>${frUrl}</code>`,
+            ``,
+            `4️⃣ Nommer la playlist puis valider`,
+            `5️⃣ attendre le chargement et profiter 🎬`,
+          ].join('\n');
+        } else {
+          msg = [
+            `📺 <b>Playlist M3U</b>`,
+            ``,
+            `🔗 <b>Toutes les chaînes :</b>`,
+            `<code>${allUrl}</code>`,
+            ``,
+            `🇫🇷 <b>France uniquement :</b>`,
+            `<code>${frUrl}</code>`,
+          ].join('\n');
+        }
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML', disable_web_page_preview: true }),
+          });
+        }
+        console.log(`[Telegram] ${cmd}`);
       }
 
     } else {

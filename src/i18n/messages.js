@@ -50,6 +50,16 @@ export const messages = {
       wrong: "Wrong answer. Try another one.",
       submit: "Verify",
     },
+    blocked: {
+      title: "Access Blocked",
+      message: "Your connection has been blocked due to suspicious activity or datacenter/VPN usage.",
+      ip: "IP",
+      isp: "ISP",
+      country: "Country",
+      proxyDetected: "Proxy/VPN detected",
+      hostingDetected: "Datacenter/hosting connection detected",
+      details: "If you believe this is an error, please contact support.",
+    },
   },
   fr: {
     appTitle: "Web TV",
@@ -94,6 +104,16 @@ export const messages = {
       placeholder: "Votre réponse",
       wrong: "Mauvaise réponse. Essayez-en une autre.",
       submit: "Vérifier",
+    },
+    blocked: {
+      title: "Accès Bloqué",
+      message: "Votre connexion a été bloquée en raison d'une activité suspecte ou de l'utilisation d'un datacenter/VPN.",
+      ip: "IP",
+      isp: "FAI",
+      country: "Pays",
+      proxyDetected: "Proxy/VPN détecté",
+      hostingDetected: "Connexion datacenter/hébergement détectée",
+      details: "Si vous pensez qu'il s'agit d'une erreur, veuillez contacter le support.",
     },
   },
 };

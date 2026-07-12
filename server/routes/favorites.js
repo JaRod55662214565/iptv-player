@@ -27,8 +27,8 @@ export async function handleFavoritesRoutes(pathname, req, res, body) {
       return true;
     }
 
-    res.writeHead(405);
-    res.end('Method not allowed');
+    res.writeHead(405, { 'Content-Type': 'application/json' });
+    res.end('{"error":"Method not allowed"}');
     return true;
   }
   return false;

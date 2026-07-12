@@ -9,15 +9,15 @@ const proxyRateLimits = new Map();
 const MAX_REDIRECTS = 5;
 const ALLOWED_PROTOCOLS = ['http:', 'https:'];
 
-function storeUrl(url) {
+function storeUrl(url, clientIP) {
   const id = crypto.randomBytes(4).toString('hex');
-  urlStore.set(id, url);
+  urlStore.set(id, { url, clientIP });
   setTimeout(() => urlStore.delete(id), 30 * 60 * 1000);
   return id;
 }
 
-function getProxyUrl(url) {
-  const id = storeUrl(url);
+function getProxyUrl(url, clientIP) {
+  const id = storeUrl(url, clientIP);
   return `${PROXY_PREFIX}/${id}`;
 }
 
@@ -84,6 +84,7 @@ const SEGMENT_EXTS = /\.(ts|m4s|mp4|aac)$/i;
 async function fetchAndRespond(targetUrl, req, res, customHeaders = null) {
   const CORS_ORIGIN = config.SITE_URL;
   const BODY_SIZE_LIMIT = config.PROXY_BODY_SIZE_LIMIT_MB * 1024 * 1024;
+  const clientIP = getClientIP(req);
 
   try {
     const resp = await safeFetch(targetUrl, req, MAX_REDIRECTS, customHeaders);
@@ -127,9 +128,9 @@ async function fetchAndRespond(targetUrl, req, res, customHeaders = null) {
         if (trimmed.startsWith('#')) return line;
         try {
           new URL(trimmed);
-          return getProxyUrl(trimmed);
+          return getProxyUrl(trimmed, clientIP);
         } catch {
-          return getProxyUrl(new URL(trimmed, baseUrl).href);
+          return getProxyUrl(new URL(trimmed, baseUrl).href, clientIP);
         }
       }).join('\n');
       res.writeHead(200, {
@@ -234,9 +235,13 @@ export async function handleProxyRoutes(pathname, req, res) {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ error: 'Expired or invalid id' }));
   }
+  if (stored.clientIP !== clientIP) {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ error: 'Forbidden' }));
+  }
   let targetUrl;
   try {
-    targetUrl = new URL(stored);
+    targetUrl = new URL(stored.url);
   } catch {
     res.writeHead(400, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ error: 'Invalid stored url' }));

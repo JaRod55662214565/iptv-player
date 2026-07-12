@@ -1,13 +1,14 @@
 import { state, saveAds, resetTodayIfNeeded } from '../state.js';
 import { config } from '../config.js';
 import { sendTelegram } from '../services/telegram.js';
+import { verifyToken } from './admin.js';
 import { escapeHTML, getClientIP, safeParse, badJson } from '../lib/utils.js';
 
 export async function handleAdsRoutes(pathname, req, res, body, url) {
   if (!pathname.startsWith('/api/ads')) return false;
 
   if (pathname === '/api/ads/shown') {
-    if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+    if (req.method !== 'POST') { res.writeHead(405, { 'Content-Type': 'application/json' }); return res.end('{"error":"Method not allowed"}'); }
     const parsed = safeParse(body);
     const adsData = parsed.ok ? parsed.data : {};
     resetTodayIfNeeded();
@@ -41,7 +42,11 @@ export async function handleAdsRoutes(pathname, req, res, body, url) {
   }
 
   if (pathname === '/api/ads/trigger-push') {
-    if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+    if (req.method !== 'POST') { res.writeHead(405, { 'Content-Type': 'application/json' }); return res.end('{"error":"Method not allowed"}'); }
+    if (!verifyToken(req)) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Token invalide ou manquant' }));
+    }
     const parsed = safeParse(body);
     const pushData = parsed.ok ? parsed.data : {};
     state.PENDING_AD_PUSH = Date.now();
