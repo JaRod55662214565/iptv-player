@@ -1,9 +1,12 @@
 export function runBootValidation() {
+  const stripeEnabled = process.env.STRIPE_ENABLED !== 'false';
   const checks = [
     { key: 'ADMIN_PASSWORD', value: process.env.ADMIN_PASSWORD, critical: true },
-    { key: 'STRIPE_SECRET_KEY', value: process.env.STRIPE_SECRET_KEY, critical: true },
     { key: 'TELEGRAM_BOT_TOKEN', value: process.env.TELEGRAM_BOT_TOKEN, critical: true },
   ];
+  if (stripeEnabled) {
+    checks.push({ key: 'STRIPE_SECRET_KEY', value: process.env.STRIPE_SECRET_KEY, critical: true });
+  }
 
   let hasError = false;
   for (const check of checks) {

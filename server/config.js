@@ -13,6 +13,7 @@ export const config = {
   WEBHOOK_URL: process.env.WEBHOOK_URL || '',
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || '',
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || '',
+  STRIPE_ENABLED: process.env.STRIPE_ENABLED !== 'false',
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || '',
   TELEGRAM_WEBHOOK_SECRET: process.env.TELEGRAM_WEBHOOK_SECRET || '',
   ADMIN_TOKEN_EXPIRY_MS: 24 * 60 * 60 * 1000,

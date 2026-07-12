@@ -6,7 +6,7 @@
     </div>
     
     <!-- PAYWALL OVERLAY -->
-    <div v-if="premiumChecked && !isPremium && !freeAccess" class="paywall-overlay">
+    <div v-if="stripeEnabled && premiumChecked && !isPremium && !freeAccess" class="paywall-overlay">
       <div class="paywall-card">
         <div class="paywall-icon">💎</div>
         <h2 class="paywall-title">Accès Premium Requis</h2>
@@ -49,6 +49,7 @@ const props = defineProps(['value', 'track']);
 const toast = useToast();
 
 const isPremium = ref(false);
+const stripeEnabled = ref(true);
 const premiumChecked = ref(false);
 const checkoutLoading = ref(false);
 const freeAccess = ref(false);
@@ -58,6 +59,7 @@ onMounted(async () => {
     const res = await fetch('/api/check-premium');
     const data = await res.json();
     isPremium.value = data.isPremium;
+    stripeEnabled.value = data.stripeEnabled !== false;
   } catch {}
   premiumChecked.value = true;
 });

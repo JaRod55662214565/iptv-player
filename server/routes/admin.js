@@ -23,33 +23,40 @@ function handleAdminAuth(body, ip) {
     console.log(`[Admin] Echec connexion depuis ${ip} (mot de passe vide ou invalide)`);
     return { ok: false, error: 'Mot de passe incorrect' };
   }
-  const pwd = (body.password || '').padEnd(64).slice(0, 64);
-  const expected = (config.ADMIN_PASSWORD || '').padEnd(64).slice(0, 64);
-  const a = Buffer.from(pwd);
-  const b = Buffer.from(expected);
-  const timingSafe = crypto.timingSafeEqual(a, b);
-  const exact = (body.password || '') === (config.ADMIN_PASSWORD || '');
-  if (timingSafe && exact) {
-    const now = Date.now();
-    const token = crypto.randomBytes(20).toString('hex');
-    state.ADMIN_TOKEN = { token, iat: now, exp: now + config.ADMIN_TOKEN_EXPIRY_MS };
-    console.log(`[Admin] Connexion reussie depuis ${ip}`);
-    return { ok: true, token };
+  const expected = config.ADMIN_PASSWORD || '';
+  if (body.password.length !== expected.length) {
+    console.log(`[Admin] Echec connexion depuis ${ip}`);
+    return { ok: false, error: 'Mot de passe incorrect' };
   }
-  console.log(`[Admin] Echec connexion depuis ${ip}`);
-  return { ok: false, error: 'Mot de passe incorrect' };
+  const a = Buffer.from(body.password.padEnd(64).slice(0, 64));
+  const b = Buffer.from(expected.padEnd(64).slice(0, 64));
+  if (!crypto.timingSafeEqual(a, b)) {
+    console.log(`[Admin] Echec connexion depuis ${ip}`);
+    return { ok: false, error: 'Mot de passe incorrect' };
+  }
+  const now = Date.now();
+  const token = crypto.randomBytes(20).toString('hex');
+  state.ADMIN_TOKEN = { token, iat: now, exp: now + config.ADMIN_TOKEN_EXPIRY_MS };
+  console.log(`[Admin] Connexion reussie depuis ${ip}`);
+  return { ok: true, token };
 }
 
 function verifyToken(req) {
   const auth = req.headers['authorization'];
   if (!auth || !auth.startsWith('Bearer ')) return false;
   const raw = auth.slice(7);
-  if (!state.ADMIN_TOKEN || state.ADMIN_TOKEN.token !== raw) return false;
+  if (!state.ADMIN_TOKEN) return false;
   if (Date.now() > state.ADMIN_TOKEN.exp) {
     state.ADMIN_TOKEN = null;
     return false;
   }
-  return true;
+  try {
+    const a = Buffer.from(raw.padEnd(40).slice(0, 40));
+    const b = Buffer.from(state.ADMIN_TOKEN.token.padEnd(40).slice(0, 40));
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
 }
 
 function unauth(res) {

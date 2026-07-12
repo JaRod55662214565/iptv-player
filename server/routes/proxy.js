@@ -184,8 +184,13 @@ async function fetchAndRespond(targetUrl, req, res, customHeaders = null) {
     return res.end();
   } catch (err) {
     console.error('[Proxy] Error fetching', targetUrl ? targetUrl.href : '(unknown)', err.message);
-    try { res.writeHead(err.message.startsWith('SSRF blocked') || err.message.startsWith('Port ') ? 400 : 502, { 'Content-Type': 'application/json' }); } catch {}
-    try { res.end(JSON.stringify({ error: err.message || 'Proxy error' })); } catch {}
+    if (!res.headersSent && !res.writableEnded) {
+      const status = err.message.startsWith('SSRF blocked') || err.message.startsWith('Port ') ? 400 : 502;
+      try { res.writeHead(status, { 'Content-Type': 'application/json' }); } catch {}
+    }
+    if (!res.writableEnded) {
+      try { res.end(JSON.stringify({ error: err.message || 'Proxy error' })); } catch {}
+    }
     return true;
   }
 }
