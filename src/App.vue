@@ -5,6 +5,7 @@
     :mode="currentMode"
     :loading="loading"
     :currentCountry="selectedCountry"
+    :customIptvActive="hasCustomIptvActive"
     @switchMode="switchMode"
     @openSettings="showSettings = true"
     @openShareLink="showShareLink = true"
@@ -13,6 +14,8 @@
     :isOpen="showSettings"
     @close="showSettings = false"
     @countryChanged="selectedCountry = $event"
+    @iptvConnected="onIptvConnected"
+    @iptvDisconnected="onIptvDisconnected"
   />
   <ShareLink
     :isOpen="showShareLink"
@@ -32,6 +35,7 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { usePlaylist } from './composables/usePlaylist';
 import { getSelectedCountry } from './utils/geolocation';
+import { hasCustomIptv } from './utils/customIptv';
 import Home from './views/Index.vue';
 import Nav from './components/Nav.vue';
 import Settings from './components/Settings.vue';
@@ -54,6 +58,7 @@ const showShareLink = ref(false);
 const showAdmin = ref(window.location.pathname === '/panel');
 const adsLoaded = ref(false);
 const isPremium = ref(false);
+const hasCustomIptvActive = ref(hasCustomIptv());
 let pushInterval = null;
 
 
@@ -155,6 +160,18 @@ function switchMode(mode) {
   loadForMode(mode, true);
 }
 
+function onIptvConnected() {
+  hasCustomIptvActive.value = true;
+  currentMode.value = 'custom';
+  loadForMode('custom', true);
+}
+
+function onIptvDisconnected() {
+  hasCustomIptvActive.value = false;
+  currentMode.value = 'home';
+  loadForMode('home', true);
+}
+
 async function notifyChannel(channelName, streamUrl) {
   try {
     await fetch('/api/telegram/channel', {
@@ -194,7 +211,11 @@ function handleHash() {
       }
       if (mode && mode !== currentMode.value) {
         currentMode.value = mode;
-        loadForMode(mode, true);
+        if (mode === 'custom' && hasCustomIptv()) {
+          loadForMode('custom', true);
+        } else if (mode !== 'custom') {
+          loadForMode(mode, true);
+        }
       }
     }
   } catch {}

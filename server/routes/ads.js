@@ -1,14 +1,15 @@
 import { state, saveAds, resetTodayIfNeeded } from '../state.js';
 import { config } from '../config.js';
 import { sendTelegram } from '../services/telegram.js';
-import { escapeHTML, getClientIP } from '../lib/utils.js';
+import { escapeHTML, getClientIP, safeParse, badJson } from '../lib/utils.js';
 
 export async function handleAdsRoutes(pathname, req, res, body, url) {
   if (!pathname.startsWith('/api/ads')) return false;
 
   if (pathname === '/api/ads/shown') {
     if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
-    const adsData = JSON.parse(body || '{}');
+    const parsed = safeParse(body);
+    const adsData = parsed.ok ? parsed.data : {};
     resetTodayIfNeeded();
     const clientIP = getClientIP(req);
     state.ADS_DATA.total++;
@@ -41,7 +42,8 @@ export async function handleAdsRoutes(pathname, req, res, body, url) {
 
   if (pathname === '/api/ads/trigger-push') {
     if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
-    const pushData = JSON.parse(body || '{}');
+    const parsed = safeParse(body);
+    const pushData = parsed.ok ? parsed.data : {};
     state.PENDING_AD_PUSH = Date.now();
     state.PENDING_AD_PUSH_IP = pushData.targetIP || null;
     const label = state.PENDING_AD_PUSH_IP ? `IP: <code>${escapeHTML(state.PENDING_AD_PUSH_IP)}</code>` : 'tous les visiteurs actifs';

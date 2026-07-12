@@ -2,7 +2,7 @@ import { config, getStripe } from '../config.js';
 import { state, savePremium } from '../state.js';
 import { readJSON } from '../storage.js';
 import { sendTelegram } from '../services/telegram.js';
-import { escapeHTML, getClientIP, checkRateLimit } from '../lib/utils.js';
+import { escapeHTML, getClientIP, checkRateLimit, safeParse, badJson } from '../lib/utils.js';
 
 const stripeRateLimits = new Map();
 
@@ -18,7 +18,9 @@ export async function handleStripeRoutes(pathname, req, res, body) {
     }
     const stripe = getStripe();
     if (!stripe) { res.writeHead(500); return res.end(JSON.stringify({ error: 'Stripe not configured' })); }
-    const data = JSON.parse(body || '{}');
+    const parsed = safeParse(body);
+    if (!parsed.ok) return badJson(res);
+    const { data } = parsed;
     let origin = data.origin || config.SITE_URL;
     if (!origin.startsWith(config.SITE_URL)) origin = config.SITE_URL;
     try {

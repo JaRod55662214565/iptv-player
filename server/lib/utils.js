@@ -98,3 +98,18 @@ export function parseLimit(str) {
 export function isBanned(ip) {
   return state.BANS_LOOKUP.has(ip);
 }
+
+export function isBlockedASN(asn) {
+  if (!asn) return false;
+  return state.BLOCKED_ASN.has(String(asn));
+}
+
+export function safeParse(body) {
+  try { return { ok: true, data: JSON.parse(body || '{}') }; }
+  catch { return { ok: false, data: null }; }
+}
+
+export function badJson(res) {
+  res.writeHead(400, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'JSON invalide' }));
+}

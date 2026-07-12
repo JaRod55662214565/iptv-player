@@ -34,6 +34,12 @@ export const config = {
   BLOCKLIST_FILE: path.join(DATA_DIR, 'vpn-datacenter.txt'),
   ADS_FILE: path.join(DATA_DIR, 'ads.json'),
   FAVORITES_FILE: path.join(DATA_DIR, 'favorites.json'),
+  BLOCKED_ASN_FILE: path.join(DATA_DIR, 'blocked-asn.json'),
+  PLAYLIST_USER: process.env.PLAYLIST_USER || '',
+  PLAYLIST_PASSWORD: process.env.PLAYLIST_PASSWORD || '',
+  PLAYLIST_CACHE_FILE: path.join(DATA_DIR, 'playlist-cache.json'),
+  FUNCTIONS_FILE: path.join(DATA_DIR, 'functions.json'),
+  COUNTRIES_FILE: path.join(DATA_DIR, 'countries.json'),
 };
 
 export function getStripe() {

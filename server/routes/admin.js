@@ -1,9 +1,9 @@
 import crypto from 'node:crypto';
 import { config } from '../config.js';
-import { state, saveBans, saveWhitelist, savePremium } from '../state.js';
+import { state, saveBans, saveWhitelist, savePremium, saveBlockedASN, saveFunctions, saveCountries } from '../state.js';
 import { readJSON } from '../storage.js';
 import { sendTelegram } from '../services/telegram.js';
-import { escapeHTML, getClientIP, parseLimit, checkRateLimit } from '../lib/utils.js';
+import { escapeHTML, getClientIP, parseLimit, checkRateLimit, safeParse, badJson } from '../lib/utils.js';
 
 const adminGlobalLimits = new Map();
 
@@ -76,8 +76,9 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ ok: false, error: 'Trop de tentatives. Reessayez dans 60s.' }));
     }
-    const data = JSON.parse(body || '{}');
-    const result = handleAdminAuth(data, clientIP);
+    const parsed = safeParse(body);
+    if (!parsed.ok) return badJson(res);
+    const result = handleAdminAuth(parsed.data, clientIP);
     res.writeHead(result.ok ? 200 : 401, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(result));
     return true;
@@ -109,7 +110,9 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
 
   if (pathname === '/api/admin/ban') {
     if (!verifyToken(req)) return unauth(res);
-    const data = JSON.parse(body || '{}');
+    const parsed = safeParse(body);
+    if (!parsed.ok) return badJson(res);
+    const { data } = parsed;
     if (!data.ip || !isValidIP(data.ip)) { res.writeHead(400); return res.end(JSON.stringify({ error: 'IP invalide ou manquante' })); }
     const bans = readJSON(config.BANS_FILE);
     if (!bans.find(b => b.ip === data.ip)) {
@@ -125,7 +128,9 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
 
   if (pathname === '/api/admin/unban') {
     if (!verifyToken(req)) return unauth(res);
-    const data = JSON.parse(body || '{}');
+    const parsed = safeParse(body);
+    if (!parsed.ok) return badJson(res);
+    const { data } = parsed;
     if (!data.ip || !isValidIP(data.ip)) { res.writeHead(400); return res.end(JSON.stringify({ error: 'IP invalide ou manquante' })); }
     saveBans(readJSON(config.BANS_FILE).filter(b => b.ip !== data.ip));
     const whitelist = readJSON(config.WHITELIST_FILE);
@@ -148,7 +153,9 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
 
   if (pathname === '/api/admin/make-premium') {
     if (!verifyToken(req)) return unauth(res);
-    const data = JSON.parse(body || '{}');
+    const parsed = safeParse(body);
+    if (!parsed.ok) return badJson(res);
+    const { data } = parsed;
     if (!data.ip || !isValidIP(data.ip)) { res.writeHead(400); return res.end(JSON.stringify({ error: 'IP invalide ou manquante' })); }
     const list = readJSON(config.PREMIUM_FILE);
     if (!list.find(p => p.ip === data.ip)) {
@@ -163,7 +170,9 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
 
   if (pathname === '/api/admin/remove-premium') {
     if (!verifyToken(req)) return unauth(res);
-    const data = JSON.parse(body || '{}');
+    const parsed = safeParse(body);
+    if (!parsed.ok) return badJson(res);
+    const { data } = parsed;
     if (!data.ip || !isValidIP(data.ip)) { res.writeHead(400); return res.end(JSON.stringify({ error: 'IP invalide ou manquante' })); }
     savePremium(readJSON(config.PREMIUM_FILE).filter(p => p.ip !== data.ip));
     await sendTelegram(`⚠️ <b>IP RETIRÉE DU PREMIUM (Panel Admin)</b>\n📍 <b>IP:</b> <code>${escapeHTML(data.ip)}</code>`);
@@ -181,7 +190,9 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
 
   if (pathname === '/api/admin/remove-whitelist') {
     if (!verifyToken(req)) return unauth(res);
-    const data = JSON.parse(body || '{}');
+    const parsed = safeParse(body);
+    if (!parsed.ok) return badJson(res);
+    const { data } = parsed;
     if (!data.ip) { res.writeHead(400); return res.end(JSON.stringify({ error: 'IP required' })); }
     saveWhitelist(readJSON(config.WHITELIST_FILE).filter(ip => ip !== data.ip));
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -227,6 +238,107 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
       impressions: state.ADS_DATA.impressions.slice(0, limit),
     }));
     return true;
+  }
+
+  if (pathname === '/api/admin/blocked-asn') {
+    if (!verifyToken(req)) return unauth(res);
+    const list = readJSON(config.BLOCKED_ASN_FILE);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(Array.isArray(list) ? list : []));
+    return true;
+  }
+
+  if (pathname === '/api/admin/add-blocked-asn') {
+    if (!verifyToken(req)) return unauth(res);
+    const parsed = safeParse(body);
+    if (!parsed.ok) return badJson(res);
+    const { data } = parsed;
+    if (!data.asn || !/^\d+$/.test(data.asn)) { res.writeHead(400); return res.end(JSON.stringify({ error: 'ASN invalide' })); }
+    const list = readJSON(config.BLOCKED_ASN_FILE);
+    if (!list.find(e => e.asn === data.asn)) {
+      list.push({ asn: data.asn, label: data.label || '' });
+      saveBlockedASN(list);
+      const labelStr = data.label ? ` (${escapeHTML(data.label)})` : '';
+      await sendTelegram(`🚫 <b>ASN BLOQUÉ (Panel Admin)</b>\n🔢 <b>ASN:</b> <code>AS${escapeHTML(data.asn)}</code>${labelStr}`);
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, asn: data.asn }));
+    return true;
+  }
+
+  if (pathname === '/api/admin/remove-blocked-asn') {
+    if (!verifyToken(req)) return unauth(res);
+    const parsed = safeParse(body);
+    if (!parsed.ok) return badJson(res);
+    const { data } = parsed;
+    if (!data.asn) { res.writeHead(400); return res.end(JSON.stringify({ error: 'ASN requis' })); }
+    const list = readJSON(config.BLOCKED_ASN_FILE);
+    const filtered = (Array.isArray(list) ? list : []).filter(e => e.asn !== data.asn);
+    saveBlockedASN(filtered);
+    await sendTelegram(`✅ <b>ASN DÉBLOQUÉ (Panel Admin)</b>\n🔢 <b>ASN:</b> <code>AS${escapeHTML(data.asn)}</code>`);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, removed: data.asn }));
+    return true;
+  }
+
+  if (pathname === '/api/admin/functions') {
+    if (req.method === 'GET') {
+      if (!verifyToken(req)) return unauth(res);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(state.FUNCTIONS));
+      return true;
+    }
+    if (req.method === 'POST') {
+      if (!verifyToken(req)) return unauth(res);
+      const parsed = safeParse(body);
+      if (!parsed.ok) return badJson(res);
+      const { data } = parsed;
+      const updated = {
+        allowVpn: !!data.allowVpn,
+        allowProxy: !!data.allowProxy,
+        allowTor: !!data.allowTor,
+      };
+      saveFunctions(updated);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, functions: updated }));
+      return true;
+    }
+  }
+
+  if (pathname === '/api/admin/telegram-status') {
+    if (!verifyToken(req)) return unauth(res);
+    const hasBot = !!config.BOT_TOKEN;
+    const hasChat = !!config.CHAT_ID;
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      botConfigured: hasBot,
+      chatId: hasChat ? config.CHAT_ID : '',
+      webhookUrl: config.WEBHOOK_URL || '',
+    }));
+    return true;
+  }
+
+  if (pathname === '/api/admin/countries') {
+    if (req.method === 'GET') {
+      if (!verifyToken(req)) return unauth(res);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(state.COUNTRIES));
+      return true;
+    }
+    if (req.method === 'POST') {
+      if (!verifyToken(req)) return unauth(res);
+      const parsed = safeParse(body);
+      if (!parsed.ok) return badJson(res);
+      const { data } = parsed;
+      const updated = {
+        allowed: Array.isArray(data.allowed) ? data.allowed.map(c => String(c).toUpperCase().trim()).filter(c => c.length === 2) : [],
+        blocked: Array.isArray(data.blocked) ? data.blocked.map(c => String(c).toUpperCase().trim()).filter(c => c.length === 2) : [],
+      };
+      saveCountries(updated);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, countries: updated }));
+      return true;
+    }
   }
 
   return false;

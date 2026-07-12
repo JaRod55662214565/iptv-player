@@ -40,6 +40,13 @@
           href="#/?mode=radio"
           @click="$emit('switchMode', 'radio')"
         >{{ t('tabRadio') }}</a>
+        <a
+          v-if="showCustomTab"
+          class="nav-tab"
+          :class="{ 'nav-tab-active': mode === 'custom' }"
+          href="#/?mode=custom"
+          @click="$emit('switchMode', 'custom')"
+        >{{ t('tabMyIptv') }}</a>
       </div>
       <div class="nav-sub-tabs">
         <button :class="{ active: section === 'channels' }" @click="section = 'channels'">Chaînes</button>
@@ -141,12 +148,14 @@ const { t } = useI18n();
 const favorites = useFavoritesStore();
 const recent = useRecentStore();
 
-const props = defineProps(["tvs", "active", "mode", "loading", "currentCountry"]);
+const props = defineProps(["tvs", "active", "mode", "loading", "currentCountry", "customIptvActive"]);
 defineEmits(["switchMode", "openSettings", "openShareLink"]);
 
 const isOpen = ref(false);
 const search = ref("");
 const section = ref("channels");
+
+const showCustomTab = computed(() => props.customIptvActive);
 
 const currentCountryFlagUrl = computed(() => {
   if (!props.currentCountry) return "";

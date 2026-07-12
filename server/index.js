@@ -12,6 +12,8 @@ import { handlePremiumRoutes } from './routes/premium.js';
 import { handleAdsRoutes } from './routes/ads.js';
 import { handleFavoritesRoutes } from './routes/favorites.js';
 import { handleProxyRoutes } from './routes/proxy.js';
+import { handlePlaylistRoutes } from './routes/playlist.js';
+import { startPlaylistRefresh } from './routes/playlist.js';
 
 runBootValidation();
 
@@ -20,6 +22,7 @@ loadState();
 
 const routes = [
   handleProxyRoutes,
+  handlePlaylistRoutes,
   handleTrackingRoutes,
   handleAdminRoutes,
   handleStripeRoutes,
@@ -83,6 +86,7 @@ const server = http.createServer(async (req, res) => {
 
 await downloadBlocklist();
 setInterval(downloadBlocklist, 12 * 60 * 60 * 1000);
+startPlaylistRefresh();
 await registerTelegramWebhook();
 
 server.on('error', (err) => {

@@ -43,9 +43,13 @@ async function checkSSRF(url) {
   }
 }
 
-async function safeFetch(targetUrl, req, maxRedirects = MAX_REDIRECTS) {
+async function safeFetch(targetUrl, req, maxRedirects = MAX_REDIRECTS, customHeaders = null) {
   const headers = { ...FETCH_HEADERS, 'Referer': config.SITE_URL || 'https://www.google.com/' };
   if (req.headers.range) headers['Range'] = req.headers.range;
+  if (customHeaders) {
+    if (customHeaders['User-Agent']) headers['User-Agent'] = customHeaders['User-Agent'];
+    if (customHeaders['Referer']) headers['Referer'] = customHeaders['Referer'];
+  }
 
   let url = targetUrl;
   for (let i = 0; i <= maxRedirects; i++) {
@@ -77,12 +81,12 @@ const FETCH_HEADERS = {
 
 const SEGMENT_EXTS = /\.(ts|m4s|mp4|aac)$/i;
 
-async function fetchAndRespond(targetUrl, req, res) {
+async function fetchAndRespond(targetUrl, req, res, customHeaders = null) {
   const CORS_ORIGIN = config.SITE_URL;
   const BODY_SIZE_LIMIT = config.PROXY_BODY_SIZE_LIMIT_MB * 1024 * 1024;
 
   try {
-    const resp = await safeFetch(targetUrl, req);
+    const resp = await safeFetch(targetUrl, req, MAX_REDIRECTS, customHeaders);
     if (!resp.ok) {
       const status = resp.status;
       try { resp.body?.getReader().cancel(); } catch {}
@@ -196,7 +200,8 @@ export async function handleProxyRoutes(pathname, req, res) {
   }
 
   if (pathname === PROXY_PREFIX) {
-    const urlParam = new URL(req.url, `http://${req.headers.host}`).searchParams.get('url');
+    const proxyUrl = new URL(req.url, `http://${req.headers.host}`);
+    const urlParam = proxyUrl.searchParams.get('url');
     if (!urlParam) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: 'Missing url parameter' }));
@@ -209,7 +214,13 @@ export async function handleProxyRoutes(pathname, req, res) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: 'Invalid url' }));
     }
-    return fetchAndRespond(targetUrl, req, res);
+    // Headers custom depuis le endpoint playlist (ua & ref)
+    const customHeaders = {};
+    const ua = proxyUrl.searchParams.get('ua');
+    const ref = proxyUrl.searchParams.get('ref');
+    if (ua) customHeaders['User-Agent'] = ua;
+    if (ref) customHeaders['Referer'] = ref;
+    return fetchAndRespond(targetUrl, req, res, Object.keys(customHeaders).length ? customHeaders : null);
   }
 
   const id = pathname.slice(PROXY_PREFIX.length + 1);

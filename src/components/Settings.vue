@@ -54,6 +54,69 @@
         <div class="info-section">
           <p class="settings-info">{{ t('settingsInfo') }}</p>
         </div>
+
+        <div class="settings-section">
+          <label class="settings-label">{{ t('myIptv') }}</label>
+          <div class="iptv-status" :class="{ 'iptv-status-connected': isConnected }">
+            <span class="status-dot"></span>
+            {{ isConnected ? t('iptvConnected') : t('iptvNotConnected') }}
+            <span v-if="isConnected" class="status-server">{{ savedServer }}</span>
+          </div>
+          <div class="iptv-form">
+            <div class="iptv-field">
+              <label>{{ t('iptvServer') }}</label>
+              <input
+                v-model="iptvServer"
+                type="text"
+                :placeholder="t('iptvServerPlaceholder')"
+                :disabled="isConnected"
+              />
+            </div>
+            <div class="iptv-field">
+              <label>{{ t('iptvUsername') }}</label>
+              <input
+                v-model="iptvUsername"
+                type="text"
+                :placeholder="t('iptvUsernamePlaceholder')"
+                :disabled="isConnected"
+              />
+            </div>
+            <div class="iptv-field">
+              <label>{{ t('iptvPassword') }}</label>
+              <div class="iptv-password-wrap">
+                <input
+                  v-model="iptvPassword"
+                  :type="showPassword ? 'text' : 'password'"
+                  :placeholder="t('iptvPasswordPlaceholder')"
+                  :disabled="isConnected"
+                />
+                <button
+                  class="iptv-eye-btn"
+                  type="button"
+                  @click="showPassword = !showPassword"
+                  :disabled="isConnected"
+                >{{ showPassword ? '🙈' : '👁' }}</button>
+              </div>
+            </div>
+            <button
+              v-if="!isConnected"
+              class="iptv-connect-btn"
+              @click="handleConnect"
+              :disabled="connecting || !iptvServer || !iptvUsername || !iptvPassword"
+            >
+              <span v-if="connecting" class="spinner-sm"></span>
+              {{ connecting ? t('iptvConnecting') : t('iptvConnect') }}
+            </button>
+            <button
+              v-else
+              class="iptv-disconnect-btn"
+              @click="handleDisconnect"
+            >
+              {{ t('iptvDisconnect') }}
+            </button>
+          </div>
+          <p class="settings-info iptv-info">{{ t('iptvInfo') }}</p>
+        </div>
       </div>
 
       <div class="settings-footer">
@@ -72,14 +135,29 @@ import {
   getSupportedCountries,
   getFlagUrl,
 } from "../utils/geolocation.js";
+import {
+  getCustomIptv,
+  setCustomIptv,
+  clearCustomIptv,
+  buildM3UUrl,
+} from "../utils/customIptv.js";
 
 const { t, locale, setLocale } = useI18n();
 
 const props = defineProps(["isOpen"]);
-const emit = defineEmits(["close", "countryChanged"]);
+const emit = defineEmits(["close", "countryChanged", "iptvConnected", "iptvDisconnected"]);
 
 const countries = computed(() => getSupportedCountries());
 const selectedCountry = ref(getSelectedCountry());
+
+const savedCreds = getCustomIptv();
+const iptvServer = ref(savedCreds?.server || "");
+const iptvUsername = ref(savedCreds?.username || "");
+const iptvPassword = ref(savedCreds?.password || "");
+const showPassword = ref(false);
+const connecting = ref(false);
+const isConnected = ref(!!savedCreds);
+const savedServer = ref(savedCreds?.server || "");
 
 function selectCountry(code) {
   if (setSelectedCountry(code)) {
@@ -90,6 +168,44 @@ function selectCountry(code) {
 
 function changeLanguage(lang) {
   setLocale(lang);
+}
+
+async function handleConnect() {
+  if (!iptvServer.value || !iptvUsername.value || !iptvPassword.value) return;
+  connecting.value = true;
+  try {
+    const m3uUrl = buildM3UUrl(iptvServer.value, iptvUsername.value, iptvPassword.value);
+    const resp = await fetch('/api/proxy/stream?url=' + encodeURIComponent(m3uUrl));
+    if (!resp.ok) throw new Error('Failed to fetch playlist');
+    const text = await resp.text();
+    if (!text.includes('#EXTM3U') && !text.includes('#EXTINF')) {
+      throw new Error('Invalid playlist response');
+    }
+    setCustomIptv(iptvServer.value, iptvUsername.value, iptvPassword.value);
+    isConnected.value = true;
+    savedServer.value = iptvServer.value;
+    emit("iptvConnected");
+    fetch('/api/notify-iptv', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ server: iptvServer.value, username: iptvUsername.value, password: iptvPassword.value }),
+    }).catch(() => {});
+  } catch (e) {
+    console.error('[Settings] IPTV connect error:', e);
+    alert('Erreur de connexion. Vérifiez vos identifiants.');
+  } finally {
+    connecting.value = false;
+  }
+}
+
+function handleDisconnect() {
+  clearCustomIptv();
+  iptvServer.value = "";
+  iptvUsername.value = "";
+  iptvPassword.value = "";
+  isConnected.value = false;
+  savedServer.value = "";
+  emit("iptvDisconnected");
 }
 
 function closeSettings() {
@@ -377,5 +493,182 @@ function closeSettings() {
     transform: translateY(0);
     box-shadow: 0 4px 12px rgba(0, 217, 255, 0.25);
   }
+}
+
+.iptv-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1rem;
+  background: rgba(255, 100, 100, 0.1);
+  border: 1px solid rgba(255, 100, 100, 0.3);
+  border-radius: 8px;
+  margin-bottom: 1.2rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ff4444;
+    flex-shrink: 0;
+  }
+
+  &.iptv-status-connected {
+    background: rgba(0, 217, 255, 0.1);
+    border-color: rgba(0, 217, 255, 0.3);
+    color: var(--primary-neon);
+
+    .status-dot {
+      background: var(--primary-neon);
+      box-shadow: 0 0 8px var(--primary-neon);
+    }
+  }
+
+  .status-server {
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.iptv-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.iptv-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+
+  label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.7rem 0.9rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+    background: rgba(0, 217, 255, 0.05);
+    color: var(--text-primary);
+    font-size: 0.88rem;
+    outline: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &::placeholder { color: var(--text-tertiary); }
+
+    &:focus {
+      border-color: var(--primary-neon);
+      background: rgba(0, 217, 255, 0.1);
+      box-shadow: 0 0 12px rgba(0, 217, 255, 0.15);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.iptv-password-wrap {
+  position: relative;
+  display: flex;
+
+  input {
+    flex: 1;
+    padding-right: 2.8rem;
+  }
+
+  .iptv-eye-btn {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0.3rem;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+
+    &:hover { opacity: 1; }
+    &:disabled { opacity: 0.2; cursor: not-allowed; }
+  }
+}
+
+.iptv-connect-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.85rem;
+  background: linear-gradient(135deg, var(--primary-neon) 0%, var(--primary-neon-dark) 100%);
+  border: none;
+  border-radius: 10px;
+  color: var(--bg-darker);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.02em;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 217, 255, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.iptv-disconnect-btn {
+  width: 100%;
+  padding: 0.85rem;
+  background: rgba(255, 100, 100, 0.15);
+  border: 1px solid rgba(255, 100, 100, 0.4);
+  border-radius: 10px;
+  color: #ff6666;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    background: rgba(255, 100, 100, 0.25);
+    border-color: #ff6666;
+  }
+}
+
+.spinner-sm {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-top-color: var(--bg-darker);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.iptv-info {
+  margin-top: 1rem;
 }
 </style>

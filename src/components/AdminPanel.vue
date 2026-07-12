@@ -46,6 +46,10 @@
           <button :class="{ active: tab === 'visits' }" @click="tab = 'visits'">Visites</button>
           <button :class="{ active: tab === 'bans' }" @click="tab = 'bans'">Bannis</button>
           <button :class="{ active: tab === 'premiums' }" @click="tab = 'premiums'">Premiums</button>
+          <button :class="{ active: tab === 'asn' }" @click="tab = 'asn'">ASN ({{ asnCount }})</button>
+          <button :class="{ active: tab === 'functions' }" @click="tab = 'functions'">Fonctions</button>
+          <button :class="{ active: tab === 'telegram' }" @click="tab = 'telegram'">Telegram</button>
+          <button :class="{ active: tab === 'countries' }" @click="tab = 'countries'">Pays</button>
         </div>
 
         <div v-if="tab === 'visits'" class="admin-content">
@@ -59,10 +63,13 @@
           <div class="visit-list">
             <div v-for="v in visits" :key="v.id" class="visit-item" :class="{ banned: v.isBanned, datacenter: v.isDatacenter && !v.isBanned, premium: isIPPremium(v.ip) }">
               <div class="visit-head">
-                <span class="visit-status">{{ v.isBanned ? '🚫' : isIPPremium(v.ip) ? '💎' : v.isDatacenter ? '🤖' : v.isProxy ? '⚠️' : '🟢' }}</span>
+                <span class="visit-status">{{ v.isASNBlocked ? '🚫' : v.isBanned ? '🚫' : isIPPremium(v.ip) ? '💎' : v.isDatacenter ? '🤖' : v.isProxy ? '⚠️' : '🟢' }}</span>
                 <span class="visit-ip"><code>{{ v.ip }}</code></span>
                 <span class="visit-country">{{ v.countryCode || '' }}</span>
                 <span class="visit-isp">{{ v.isp }}</span>
+              </div>
+              <div v-if="v.asn" class="visit-asn">
+                <span>🔢 <b>AS{{ v.asn }}</b>{{ v.asnOrg ? ' — ' + v.asnOrg : '' }}</span>
               </div>
               <div class="visit-body">
                 <span><b>App:</b> {{ v.deviceType }} — {{ v.browser }} {{ v.os }}</span>
@@ -116,6 +123,119 @@
             <div v-if="premiums.length === 0" class="empty">Aucun IP Premium</div>
           </div>
         </div>
+
+        <div v-if="tab === 'asn'" class="admin-content">
+          <div class="visit-stats">
+            <div class="stat">ASN bloqués: <strong>{{ asnCount }}</strong></div>
+            <button class="refresh-btn" @click="loadAll">&#x21bb;</button>
+          </div>
+          <div class="ban-row">
+            <input v-model="asnInput" type="text" placeholder="Numéro ASN (ex: 15169)" @keyup.enter="handleAddASN" />
+            <input v-model="asnLabel" type="text" placeholder="Label (ex: Google)" @keyup.enter="handleAddASN" />
+            <button @click="handleAddASN" class="premium-add-btn">Ajouter ASN</button>
+          </div>
+          <div class="ban-list">
+            <div v-for="entry in blockedASN" :key="entry.asn" class="asn-item">
+              <span class="asn-number"><code>AS{{ entry.asn }}</code></span>
+              <span class="asn-label">{{ entry.label || '—' }}</span>
+              <button class="depremium-btn" @click="removeBlockedASN(entry.asn)">Supprimer</button>
+            </div>
+            <div v-if="blockedASN.length === 0" class="empty">Aucun ASN bloqué</div>
+          </div>
+        </div>
+
+        <div v-if="tab === 'functions'" class="admin-content">
+          <div class="settings-list">
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-label">Allow VPN</span>
+                <span class="setting-desc">Autoriser les connexions via VPN</span>
+              </div>
+              <button class="toggle-btn" :class="{ active: functions.allowVpn }" @click="updateFunctions({ ...functions, allowVpn: !functions.allowVpn })">
+                {{ functions.allowVpn ? 'YES' : 'NO' }}
+              </button>
+            </div>
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-label">Allow Proxy</span>
+                <span class="setting-desc">Autoriser les connexions via Proxy</span>
+              </div>
+              <button class="toggle-btn" :class="{ active: functions.allowProxy }" @click="updateFunctions({ ...functions, allowProxy: !functions.allowProxy })">
+                {{ functions.allowProxy ? 'YES' : 'NO' }}
+              </button>
+            </div>
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-label">Allow Tor</span>
+                <span class="setting-desc">Autoriser les connexions via Tor</span>
+              </div>
+              <button class="toggle-btn" :class="{ active: functions.allowTor }" @click="updateFunctions({ ...functions, allowTor: !functions.allowTor })">
+                {{ functions.allowTor ? 'YES' : 'NO' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="tab === 'telegram'" class="admin-content">
+          <div class="settings-list">
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-label">Bot Telegram</span>
+                <span class="setting-desc">Statut de connexion du bot</span>
+              </div>
+              <span class="status-badge" :class="{ ok: telegramStatus.botConfigured }">
+                {{ telegramStatus.botConfigured ? 'En ligne' : 'Non configuré' }}
+              </span>
+            </div>
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-label">Chat ID</span>
+                <span class="setting-desc">Identifiant du chat pour les notifications</span>
+              </div>
+              <code class="setting-value">{{ maskChatId(telegramStatus.chatId) }}</code>
+            </div>
+            <div v-if="telegramStatus.webhookUrl" class="setting-item">
+              <div class="setting-info">
+                <span class="setting-label">Webhook URL</span>
+                <span class="setting-desc">URL de callback Telegram</span>
+              </div>
+              <code class="setting-value setting-value-small">{{ telegramStatus.webhookUrl }}</code>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="tab === 'countries'" class="admin-content">
+          <div class="countries-section">
+            <h3 class="section-title">Pays autorisés</h3>
+            <p class="section-desc">Laisser vide = tous les pays autorisés. Codes ISO à 2 lettres (ex: FR, DE, US).</p>
+            <div class="ban-row">
+              <input v-model="allowedCountryInput" type="text" placeholder="Code pays (ex: FR)" maxlength="2" @keyup.enter="addCountry('allowed')" />
+              <button @click="addCountry('allowed')" class="premium-add-btn">Ajouter</button>
+            </div>
+            <div class="tag-list">
+              <span v-for="c in countries.allowed" :key="'a-'+c" class="country-tag allowed">
+                {{ c }}
+                <button @click="removeCountry('allowed', c)">&times;</button>
+              </span>
+              <span v-if="countries.allowed.length === 0" class="empty-inline">Tous les pays</span>
+            </div>
+          </div>
+          <div class="countries-section" style="margin-top: 1.5rem;">
+            <h3 class="section-title">Pays bloqués</h3>
+            <p class="section-desc">Les visiteurs de ces pays seront bloqués. Codes ISO à 2 lettres.</p>
+            <div class="ban-row">
+              <input v-model="blockedCountryInput" type="text" placeholder="Code pays (ex: CN)" maxlength="2" @keyup.enter="addCountry('blocked')" />
+              <button @click="addCountry('blocked')" class="premium-add-btn">Ajouter</button>
+            </div>
+            <div class="tag-list">
+              <span v-for="c in countries.blocked" :key="'b-'+c" class="country-tag blocked">
+                {{ c }}
+                <button @click="removeCountry('blocked', c)">&times;</button>
+              </span>
+              <span v-if="countries.blocked.length === 0" class="empty-inline">Aucun pays bloqué</span>
+            </div>
+          </div>
+        </div>
       </template>
     </div>
   </div>
@@ -129,9 +249,11 @@ defineEmits(['close']);
 
 const {
   authenticated, loading, loginError,
-  visits, bans, premiums,
-  datacenterCount, bannedCount, premiumCount,
+  visits, bans, premiums, blockedASN,
+  functions, telegramStatus, countries,
+  datacenterCount, bannedCount, premiumCount, asnCount,
   login, loadAll, ban, unban, makePremium, removePremium, pushAd,
+  addBlockedASN, removeBlockedASN, updateFunctions, updateCountries,
 } = useAdmin();
 
 const isPanelPage = window.location.pathname === '/panel';
@@ -139,6 +261,10 @@ const password = ref('');
 const tab = ref('visits');
 const banIPInput = ref('');
 const premiumIPInput = ref('');
+const asnInput = ref('');
+const asnLabel = ref('');
+const allowedCountryInput = ref('');
+const blockedCountryInput = ref('');
 
 // Captcha State
 const captchaA = ref(0);
@@ -210,6 +336,14 @@ function handleMakePremium(ip) {
   premiumIPInput.value = '';
 }
 
+function handleAddASN() {
+  const asn = asnInput.value.trim();
+  if (!asn || !/^\d+$/.test(asn)) return;
+  addBlockedASN(asn, asnLabel.value.trim());
+  asnInput.value = '';
+  asnLabel.value = '';
+}
+
 function isIPPremium(ip) {
   return premiums.value && premiums.value.some(p => p.ip === ip);
 }
@@ -217,6 +351,29 @@ function isIPPremium(ip) {
 function formatDate(d) {
   if (!d) return '';
   try { return new Date(d).toLocaleString(); } catch { return d; }
+}
+
+function addCountry(type) {
+  const input = type === 'allowed' ? allowedCountryInput : blockedCountryInput;
+  const code = input.value.trim().toUpperCase();
+  if (!code || code.length !== 2 || !/^[A-Z]{2}$/.test(code)) return;
+  const list = [...countries.value[type]];
+  if (!list.includes(code)) {
+    list.push(code);
+    updateCountries({ ...countries.value, [type]: list });
+  }
+  input.value = '';
+}
+
+function removeCountry(type, code) {
+  const list = countries.value[type].filter(c => c !== code);
+  updateCountries({ ...countries.value, [type]: list });
+}
+
+function maskChatId(id) {
+  if (!id) return 'Non configuré';
+  const ids = id.split(',').map(s => s.trim());
+  return ids.map(s => s.length > 4 ? s.slice(0, 4) + '*'.repeat(s.length - 4) : s).join(', ');
 }
 </script>
 
@@ -494,6 +651,13 @@ function formatDate(d) {
   }
 }
 
+.visit-asn {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  b { color: var(--primary-neon); }
+}
+
 .visit-actions {
   margin-top: 0.5rem;
   display: flex;
@@ -598,6 +762,173 @@ function formatDate(d) {
   text-align: center;
   color: var(--text-tertiary);
   padding: 2rem;
+  font-style: italic;
+}
+
+.asn-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.7rem;
+  background: rgba(255,165,0,0.05);
+  border: 1px solid rgba(255,165,0,0.2);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  code {
+    color: var(--primary-neon);
+    font-weight: 700;
+    background: rgba(0,217,255,0.1);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+  }
+  .asn-number { min-width: 100px; }
+  .asn-label {
+    flex: 1;
+    color: var(--text-secondary);
+  }
+  .depremium-btn { margin-left: auto; }
+}
+
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  background: rgba(0,217,255,0.03);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.setting-label {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.setting-desc {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.setting-value {
+  font-size: 0.8rem;
+  color: var(--primary-neon);
+  background: rgba(0,217,255,0.1);
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  word-break: break-all;
+}
+
+.setting-value-small {
+  font-size: 0.7rem;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toggle-btn {
+  padding: 0.45rem 1.2rem;
+  border: 1px solid rgba(239,68,68,0.4);
+  border-radius: 20px;
+  background: rgba(239,68,68,0.1);
+  color: #ef4444;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  min-width: 60px;
+  &.active {
+    border-color: rgba(34,197,94,0.4);
+    background: rgba(34,197,94,0.1);
+    color: #22c55e;
+  }
+  &:hover { opacity: 0.8; }
+}
+
+.status-badge {
+  padding: 0.35rem 0.9rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(239,68,68,0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239,68,68,0.3);
+  &.ok {
+    background: rgba(34,197,94,0.1);
+    color: #22c55e;
+    border-color: rgba(34,197,94,0.3);
+  }
+}
+
+.countries-section {
+  .section-title {
+    margin: 0 0 0.3rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .section-desc {
+    margin: 0 0 0.8rem;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+  }
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.country-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  &.allowed {
+    background: rgba(34,197,94,0.1);
+    color: #22c55e;
+    border: 1px solid rgba(34,197,94,0.3);
+  }
+  &.blocked {
+    background: rgba(239,68,68,0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239,68,68,0.3);
+  }
+  button {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    opacity: 0.6;
+    padding: 0;
+    &:hover { opacity: 1; }
+  }
+}
+
+.empty-inline {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
   font-style: italic;
 }
 </style>

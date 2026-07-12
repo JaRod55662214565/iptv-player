@@ -8,10 +8,15 @@ export function useAdmin() {
   const visits = ref([]);
   const bans = ref([]);
   const premiums = ref([]);
+  const blockedASN = ref([]);
+  const functions = ref({ allowVpn: false, allowProxy: false, allowTor: false });
+  const telegramStatus = ref({ botConfigured: false, chatId: '', webhookUrl: '' });
+  const countries = ref({ allowed: [], blocked: [] });
 
   const datacenterCount = computed(() => visits.value.filter(v => v.isDatacenter).length);
   const bannedCount = computed(() => visits.value.filter(v => v.isBanned).length);
   const premiumCount = computed(() => premiums.value.length);
+  const asnCount = computed(() => blockedASN.value.length);
 
   async function login(password) {
     loading.value = true;
@@ -46,8 +51,28 @@ export function useAdmin() {
     if (Array.isArray(data)) premiums.value = data;
   }
 
+  async function loadBlockedASN() {
+    const data = await adminApi.fetchBlockedASN();
+    if (Array.isArray(data)) blockedASN.value = data;
+  }
+
+  async function loadFunctions() {
+    const data = await adminApi.fetchFunctions();
+    if (data && typeof data.allowVpn !== 'undefined') functions.value = data;
+  }
+
+  async function loadTelegramStatus() {
+    const data = await adminApi.fetchTelegramStatus();
+    if (data && typeof data.botConfigured !== 'undefined') telegramStatus.value = data;
+  }
+
+  async function loadCountries() {
+    const data = await adminApi.fetchCountries();
+    if (data && Array.isArray(data.allowed)) countries.value = data;
+  }
+
   async function loadAll() {
-    await Promise.all([loadVisits(), loadBans(), loadPremiums()]);
+    await Promise.allSettled([loadVisits(), loadBans(), loadPremiums(), loadBlockedASN(), loadFunctions(), loadTelegramStatus(), loadCountries()]);
   }
 
   async function ban(ip) {
@@ -76,11 +101,32 @@ export function useAdmin() {
     await adminApi.triggerPushAd(ip);
   }
 
+  async function addBlockedASN(asn, label) {
+    await adminApi.addBlockedASN(asn, label);
+    await loadBlockedASN();
+  }
+
+  async function removeBlockedASN(asn) {
+    await adminApi.removeBlockedASN(asn);
+    await loadBlockedASN();
+  }
+
+  async function updateFunctions(data) {
+    await adminApi.updateFunctions(data);
+    await loadFunctions();
+  }
+
+  async function updateCountries(data) {
+    await adminApi.updateCountries(data);
+    await loadCountries();
+  }
+
   return {
     authenticated, loading, loginError,
-    visits, bans, premiums,
-    datacenterCount, bannedCount, premiumCount,
-    login, loadAll, loadVisits, loadBans, loadPremiums, ban, unban,
+    visits, bans, premiums, blockedASN, functions, telegramStatus, countries,
+    datacenterCount, bannedCount, premiumCount, asnCount,
+    login, loadAll, loadVisits, loadBans, loadPremiums, loadBlockedASN, ban, unban,
     makePremium, removePremium, pushAd,
+    addBlockedASN, removeBlockedASN, updateFunctions, updateCountries,
   };
 }

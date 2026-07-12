@@ -3,6 +3,8 @@ import { config } from '../config.js';
 import { state } from '../state.js';
 import { cidrToRange, escapeHTML } from '../lib/utils.js';
 
+const PROVIDER_TIMEOUT = 4000;
+
 function loadRanges(text) {
   return text.trim().split('\n')
     .filter(l => l && !l.startsWith('#'))
@@ -36,30 +38,154 @@ export async function downloadBlocklist() {
   }
 }
 
-export async function lookupIP(ip) {
-  if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') {
-    return { ip, country: 'Local', countryCode: 'LO', isp: 'Localhost', isProxy: false, isHosting: false, isMobile: false };
-  }
-  try {
-    const resp = await fetch(`http://ip-api.com/json/${ip}?fields=status,query,isp,org,country,countryCode,city,regionName,proxy,hosting,mobile`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!resp.ok) return { ip, country: 'Unknown', isp: 'Unknown' };
-    const data = await resp.json();
-    if (data.status !== 'success') return { ip, country: 'Unknown', isp: 'Unknown' };
-    return {
-      ip: data.query,
-      country: escapeHTML(data.country || 'Unknown'),
-      countryCode: data.countryCode || '',
-      city: escapeHTML(data.city || ''),
-      region: escapeHTML(data.regionName || ''),
-      isp: escapeHTML(data.isp || data.org || 'Unknown'),
-      isProxy: !!data.proxy,
-      isHosting: !!data.hosting,
-      isMobile: !!data.mobile,
-    };
-  } catch {
-    return { ip, country: 'Unknown', isp: 'Unknown' };
-  }
+function safeString(val) {
+  return escapeHTML(String(val || ''));
 }
 
+const PROVIDERS = [
+  {
+    name: 'ipapi.is',
+    url: (ip) => `https://api.ipapi.is/?q=${ip}`,
+    parse: (data) => {
+      if (!data || !data.ip) return null;
+      return {
+        ip: data.ip,
+        country: safeString(data.location?.country || ''),
+        countryCode: data.location?.country_code || '',
+        city: safeString(data.location?.city || ''),
+        region: safeString(data.location?.state || ''),
+        isp: safeString(data.isp || data.org || ''),
+        asn: data.asn?.asn ? String(data.asn.asn).replace('AS', '') : null,
+        asnOrg: safeString(data.asn?.org || ''),
+        isProxy: !!data.is_proxy,
+        isHosting: !!data.is_datacenter,
+        isMobile: !!data.is_mobile,
+      };
+    },
+  },
+  {
+    name: 'ipinfo.io',
+    url: (ip) => `https://ipinfo.io/${ip}/json`,
+    parse: (data) => {
+      if (!data || !data.ip) return null;
+      let asn = null;
+      let asnOrg = '';
+      if (data.asn && typeof data.asn === 'object') {
+        asn = String(data.asn.id || '').replace('AS', '');
+        asnOrg = safeString(data.asn.name || '');
+      } else if (data.org) {
+        const parts = data.org.split(' ');
+        const maybeASN = parts[0] || '';
+        if (maybeASN.startsWith('AS')) {
+          asn = maybeASN.replace('AS', '');
+          asnOrg = safeString(parts.slice(1).join(' '));
+        }
+      }
+      // isp: nettoyer le préfixe ASN si présent dans org
+      let isp = data.org || data.company?.name || '';
+      if (isp && isp.startsWith('AS')) {
+        isp = isp.replace(/^AS\d+\s*/, '');
+      }
+      return {
+        ip: data.ip,
+        country: safeString(data.country || ''),
+        countryCode: data.country || '',
+        city: safeString(data.city || ''),
+        region: safeString(data.region || ''),
+        isp: safeString(isp),
+        asn,
+        asnOrg,
+        isProxy: false,
+        isHosting: data.hosting || data.privacy?.hosting || false,
+        isMobile: false,
+      };
+    },
+  },
+  {
+    name: 'ipwhois.io',
+    url: (ip) => `https://ipwhois.io/json/${ip}`,
+    parse: (data) => {
+      if (!data || !data.ip || data.success === false) return null;
+      let isp = data.isp || data.org || '';
+      // ipwhois retourne parfois "ASxxxx OrgName" dans isp pour IPv6
+      if (isp && isp.startsWith('AS')) {
+        isp = isp.replace(/^AS\d+\s*/, '');
+      }
+      return {
+        ip: data.ip,
+        country: safeString(data.country || ''),
+        countryCode: data.country_code || '',
+        city: safeString(data.city || ''),
+        region: safeString(data.region || ''),
+        isp: safeString(isp),
+        asn: data.asn ? String(data.asn).replace('AS', '') : null,
+        asnOrg: safeString(data.org || data.isp || ''),
+        isProxy: !!data.proxy,
+        isHosting: !!data.hosting,
+        isMobile: !!data.mobile,
+      };
+    },
+  },
+  {
+    name: 'ip-api.com',
+    url: (ip) => `http://ip-api.com/json/${ip}?fields=status,query,isp,org,as,country,countryCode,city,regionName,proxy,hosting,mobile`,
+    parse: (data) => {
+      if (!data || data.status !== 'success') return null;
+      let asn = null;
+      let asnOrg = '';
+      // ip-api.com retourne le champ "as" comme "AS3215 Orange S.A."
+      if (data.as) {
+        const parts = data.as.split(' ');
+        const maybeASN = parts[0] || '';
+        if (maybeASN.startsWith('AS')) {
+          asn = maybeASN.replace('AS', '');
+          asnOrg = safeString(parts.slice(1).join(' '));
+        }
+      }
+      return {
+        ip: data.query,
+        country: safeString(data.country || ''),
+        countryCode: data.countryCode || '',
+        city: safeString(data.city || ''),
+        region: safeString(data.regionName || ''),
+        isp: safeString(data.isp || data.org || ''),
+        asn,
+        asnOrg,
+        isProxy: !!data.proxy,
+        isHosting: !!data.hosting,
+        isMobile: !!data.mobile,
+      };
+    },
+  },
+];
+
+export async function lookupIP(ip) {
+  if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') {
+    return { ip, country: 'Local', countryCode: 'LO', isp: 'Localhost', asn: null, asnOrg: '', isProxy: false, isHosting: false, isMobile: false };
+  }
+
+  for (const provider of PROVIDERS) {
+    try {
+      const resp = await fetch(provider.url(ip), { signal: AbortSignal.timeout(PROVIDER_TIMEOUT) });
+      if (!resp.ok) {
+        console.warn(`[Geo] ${provider.name} HTTP ${resp.status} pour ${ip}`);
+        continue;
+      }
+      const data = await resp.json();
+      const result = provider.parse(data);
+      if (result) {
+        // Fallback: si ISP vide mais asnOrg présent, utiliser asnOrg
+        if (!result.isp && result.asnOrg) {
+          result.isp = result.asnOrg;
+        }
+        console.log(`[Geo] ${provider.name} → ${ip} ASN:${result.asn || 'N/A'} ISP:${result.isp || 'N/A'} ${result.countryCode}`);
+        return result;
+      }
+      console.warn(`[Geo] ${provider.name} retour invalide pour ${ip}`);
+    } catch (e) {
+      console.warn(`[Geo] ${provider.name} erreur pour ${ip}: ${e.message}`);
+    }
+  }
+
+  return { ip, country: 'Unknown', countryCode: '', isp: 'Unknown', asn: null, asnOrg: '', isProxy: false, isHosting: false, isMobile: false };
+}
