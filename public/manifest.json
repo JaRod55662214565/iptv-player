@@ -1,12 +1,13 @@
 {
-  "name": "1TR4CK — IPTV Player",
+  "name": "1TR4CK — Free IPTV Player",
   "short_name": "1TR4CK",
-  "description": "Player IPTV gratuit en ligne. 17+ chaînes TV en direct.",
+  "description": "Free IPTV player online. 17+ live TV channels with no sign-up. Player IPTV gratuit en ligne.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a14",
   "theme_color": "#0a0a14",
   "orientation": "any",
+  "lang": "en",
   "icons": [
     {
       "src": "/icon.svg",

@@ -48,6 +48,13 @@
             >
               Français
             </button>
+            <button
+              class="lang-option"
+              :class="{ 'lang-option-active': locale === 'es' }"
+              @click="changeLanguage('es')"
+            >
+              Español
+            </button>
           </div>
         </div>
 
