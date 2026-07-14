@@ -1,23 +1,24 @@
+import { config } from './config.js';
+
 export function runBootValidation() {
-  const stripeEnabled = process.env.STRIPE_ENABLED !== 'false';
   const checks = [
-    { key: 'ADMIN_PASSWORD', value: process.env.ADMIN_PASSWORD, critical: true },
-    { key: 'TELEGRAM_BOT_TOKEN', value: process.env.TELEGRAM_BOT_TOKEN, critical: true },
+    { key: 'ADMIN_PASSWORD', value: config.ADMIN_PASSWORD, critical: true },
+    { key: 'TELEGRAM_BOT_TOKEN', value: config.BOT_TOKEN, critical: true },
   ];
-  if (stripeEnabled) {
-    checks.push({ key: 'STRIPE_SECRET_KEY', value: process.env.STRIPE_SECRET_KEY, critical: true });
+  if (config.STRIPE_ENABLED) {
+    checks.push({ key: 'STRIPE_SECRET_KEY', value: config.STRIPE_SECRET_KEY, critical: true });
   }
 
   let hasError = false;
   for (const check of checks) {
     if (!check.value) {
-      console.error(`CRITICAL ERROR: ${check.key} environment variable is not defined!`);
+      console.error(`[Boot] CRITICAL: ${check.key} is not defined!`);
       hasError = true;
     }
   }
 
-  if (!process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD.length < 8) {
-    console.error('CRITICAL ERROR: ADMIN_PASSWORD must be at least 8 characters!');
+  if (!config.ADMIN_PASSWORD || config.ADMIN_PASSWORD.length < 8) {
+    console.error('[Boot] CRITICAL: ADMIN_PASSWORD must be at least 8 characters!');
     hasError = true;
   }
 

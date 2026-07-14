@@ -50,6 +50,12 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const pathname = url.pathname;
 
+  if (!config.PANEL_ENABLED && (pathname === '/panel' || pathname === '/panel/')) {
+    res.writeHead(302, { Location: 'https://en.wikipedia.org/wiki/Wikipedia:Bots' });
+    res.end();
+    return;
+  }
+
   let body = '';
   let bodySize = 0;
   const MAX_BODY = 1 * 1024 * 1024; // 1MB
@@ -88,7 +94,7 @@ const server = http.createServer(async (req, res) => {
 
 await downloadBlocklist();
 setInterval(downloadBlocklist, 12 * 60 * 60 * 1000);
-startPlaylistRefresh();
+if (config.M3U_ENABLED) startPlaylistRefresh();
 await registerTelegramWebhook();
 
 server.on('error', (err) => {

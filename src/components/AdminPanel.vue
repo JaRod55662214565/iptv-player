@@ -695,10 +695,11 @@ function maskChatId(id) {
 .table-scroll { max-height: 350px; overflow-y: auto; }
 table { width: 100%; border-collapse: collapse; }
 th {
-  text-align: left; padding: 8px 16px; font-size: 10px; color: #555;
+  text-align: left; padding: 8px 16px; font-size: 11px; color: #999; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #1a1a1a;
-  position: sticky; top: 0; background: #111;
+  position: sticky; top: 0; background: #111; z-index: 1;
 }
+thead tr { background: #111; }
 td { padding: 8px 16px; font-size: 12px; border-bottom: 1px solid #151515; color: #ccc; }
 tr:hover td { background: #161616; }
 .mono { font-family: 'SF Mono', Consolas, monospace; font-size: 11px; }

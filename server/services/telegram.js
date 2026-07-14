@@ -194,27 +194,30 @@ export async function sendTelegram(text, ip) {
   if (text.length > 3900) text = text.slice(0, 3900) + '\n\n... (tronqué)';
   const chatIds = String(config.CHAT_ID).split(',').map(id => id.trim());
   const reply_markup = { inline_keyboard: [] };
-  const row1 = [];
   if (ip) {
-    const sig = signData('captcha', ip);
-    row1.push({ text: '🛡️ Captcha', callback_data: `captcha_${ip}_${sig}` });
+    const sigCaptcha = signData('captcha', ip);
+    const sigPush = signData('push', ip);
     const sigBan = signData('ban', ip);
-    row1.push({ text: '⛔ Bloquer', callback_data: `block_${ip}_${sigBan}` });
     const sigPremium = signData('premium', ip);
-    row1.push({ text: '💎 Premium', callback_data: `premium_${ip}_${sigPremium}` });
+    const sigRedirect = signData('redirect', ip);
+    reply_markup.inline_keyboard.push([
+      { text: '🧩 Captcha', callback_data: `captcha_${ip}_${sigCaptcha}` },
+      { text: '📢 Push', callback_data: `push_ip_${ip}_${sigPush}` },
+    ]);
+    reply_markup.inline_keyboard.push([
+      { text: '⛔ Bloquer', callback_data: `block_${ip}_${sigBan}` },
+      { text: '💎 Premium', callback_data: `premium_${ip}_${sigPremium}` },
+    ]);
+    reply_markup.inline_keyboard.push([
+      { text: '🔄 Redirect', callback_data: `redirect_menu_${ip}_${sigRedirect}` },
+    ]);
   }
   if (config.PANEL_ENABLED) {
-    row1.push({ text: '🔐 Panel', url: `${config.SITE_URL}/panel` });
-  }
-  reply_markup.inline_keyboard.push(row1);
-
-  if (ip) {
-    const row2 = [];
-    const sigPush = signData('push', ip);
-    row2.push({ text: '📢 Push (cette IP)', callback_data: `push_ip_${ip}_${sigPush}` });
-    const sigRedirect = signData('redirect', ip);
-    row2.push({ text: '🔄 Redirect', callback_data: `redirect_menu_${ip}_${sigRedirect}` });
-    reply_markup.inline_keyboard.push(row2);
+    const lastRow = reply_markup.inline_keyboard[reply_markup.inline_keyboard.length - 1] || [];
+    lastRow.push({ text: '🔐 Panel', url: `${config.SITE_URL}/panel` });
+    if (lastRow.length > 0 && reply_markup.inline_keyboard[reply_markup.inline_keyboard.length - 1] !== lastRow) {
+      reply_markup.inline_keyboard.push(lastRow);
+    }
   }
 
   for (const chatId of chatIds) {
@@ -442,6 +445,7 @@ export async function registerTelegramWebhook() {
           { command: 'list', description: 'Lister les IPs Basic, VIP et bloquées' },
           { command: 'playlist', description: 'Lien playlist M3U (VLC, Kodi, TiviMate…)' },
           { command: 'smarters', description: 'Setup IPTV Smarters Pro' },
+          { command: 'panel', description: 'Accéder au panneau admin' },
         ],
       }),
     });
@@ -477,14 +481,13 @@ export async function handleTelegramWebhook(update) {
         `📺 <code>/playlist</code> — Lien playlist M3U (VLC, Kodi, TiviMate…)`,
         `📱 <code>/smarters</code> — Instructions setup IPTV Smarters Pro`,
         `🛠️ <code>/admin</code> — Menu administration avec actions rapides`,
+        config.PANEL_ENABLED ? `🔐 <code>/panel</code> — Accéder au panneau admin` : '',
         ``,
-        `📢 Les boutons inline sur les notifications permettent de :`,
-        `   • 🛡️ Forcer un captcha sur une IP`,
-        `   • ⛔ Bloquer / 🔓 Débloquer une IP`,
-        `   • 💎 Passer une IP en Premium`,
-        `   • 📢 Push une pub ciblée sur une IP`,
-        `   • 🔄 Rediriger un visiteur vers une page`,
-        config.PANEL_ENABLED ? `   • 🔐 Accéder au panel admin` : '',
+        `📢 Les boutons inline sur les notifications :`,
+        `   • 🧩 Captcha — ⛔ Bloquer / 🔓 Débloquer`,
+        `   • 💎 Premium — 📢 Push publicité`,
+        `   • 🔄 Rediriger vers une page`,
+        config.PANEL_ENABLED ? `   • 🔐 Panel admin` : '',
       ].filter(Boolean).join('\n');
       if (config.BOT_TOKEN) {
         await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
@@ -495,14 +498,13 @@ export async function handleTelegramWebhook(update) {
       }
       console.log('[Telegram] /start ou /help');
 
-    } else if (cmd.startsWith('/ip')) {
-      const ip = cmd.length > 4 ? cmd.slice(4).trim() : '';
+    } else if (/^\/ip(\s|$)/i.test(cmd)) {
+      const ip = cmd.replace(/^\/ip\s*/i, '').trim().replace(/^\[|\]$/g, '');
       if (!ip || !/^[\da-f:.]+$/i.test(ip)) {
         if (config.BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: chatId, text: `⚠️ Usage: <code>/ip &lt;adresse&gt;</code>\nEx: <code>/ip 52.16.245.145</code>`, parse_mode: 'HTML' }),
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: `⚠️ Usage: <code>/ip &lt;adresse&gt;</code>\nEx: <code>/ip 52.16.245.145</code>\n<code>/ip 2a01:cb08:28f:ed00::1</code>`, parse_mode: 'HTML' }),
           });
         }
         console.log(`[Telegram] /ip usage invalide: "${cmd}"`);
@@ -842,6 +844,27 @@ export async function handleTelegramWebhook(update) {
           });
         }
         console.log('[Telegram] /link');
+      }
+
+    } else if (cmd === '/panel') {
+      if (!isAuthorizedChat(chatId)) {
+        if (config.BOT_TOKEN) { await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `⛔ Accès refusé.`, parse_mode: 'HTML' }) }); }
+      } else if (config.PANEL_ENABLED) {
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: `🔐 <b>Panel Admin</b>\n\n<a href="${config.SITE_URL}/panel">Ouvrir le panel →</a>`, parse_mode: 'HTML', disable_web_page_preview: true }),
+          });
+        }
+        console.log('[Telegram] /panel');
+      } else {
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: `⚠️ Le panel admin est actuellement désactivé.`, parse_mode: 'HTML' }),
+          });
+        }
+        console.log('[Telegram] /panel (désactivé)');
       }
 
     } else {

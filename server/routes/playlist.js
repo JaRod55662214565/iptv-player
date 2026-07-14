@@ -180,6 +180,12 @@ export async function handlePlaylistRoutes(pathname, req, res) {
   const isAuth = AUTH_ROUTES.includes(pathname);
   const isPublic = PUBLIC_ROUTES.includes(pathname);
   if (!isAuth && !isPublic) return false;
+
+  if (!config.M3U_ENABLED) {
+    res.writeHead(302, { Location: 'https://en.wikipedia.org/wiki/Wikipedia:Bots' });
+    res.end();
+    return true;
+  }
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.writeHead(405, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Method not allowed' }));

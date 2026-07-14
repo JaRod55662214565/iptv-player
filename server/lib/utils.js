@@ -64,10 +64,10 @@ export function parseUA(ua) {
   else if (name.includes('firefox')) browser = 'Firefox';
   else if (name.includes('opera') || name.includes('opr')) browser = 'Opera';
   if (name.includes('windows')) os = 'Windows';
+  else if (name.includes('iphone') || name.includes('ipad') || name.includes('ipod')) os = 'iOS';
   else if (name.includes('mac os') || name.includes('macintosh')) os = 'macOS';
   else if (name.includes('linux') && !name.includes('android')) os = 'Linux';
   else if (name.includes('android')) os = 'Android';
-  else if (name.includes('iphone') || name.includes('ipad')) os = 'iOS';
   return { browser, os };
 }
 
