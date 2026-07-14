@@ -10,14 +10,19 @@
           <button
             class="settings-btn share-btn"
             @click="$emit('openShareLink')"
-            :aria-label="'Share Link'"
-            title="Share Link"
-          >&#128279;</button>
+            :aria-label="t('share.title')"
+            :title="t('share.title')"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          </button>
           <button
             class="settings-btn"
             @click="$emit('openSettings')"
             :aria-label="t('settings')"
-          >&#9881;</button>
+            :title="t('settings')"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
           <button class="nav-close" @click="isOpen = false" aria-label="Close menu">&times;</button>
         </div>
       </div>
@@ -49,11 +54,11 @@
         >{{ t('tabMyIptv') }}</a>
       </div>
       <div class="nav-sub-tabs">
-        <button :class="{ active: section === 'channels' }" @click="section = 'channels'">Chaînes</button>
+        <button :class="{ active: section === 'channels' }" @click="section = 'channels'">{{ t('channels') }}</button>
         <button :class="{ active: section === 'favorites' }" @click="section = 'favorites'">
-          Favoris <span v-if="favorites.items.length" class="badge">{{ favorites.items.length }}</span>
+          {{ t('favorites') }} <span v-if="favorites.items.length" class="badge">{{ favorites.items.length }}</span>
         </button>
-        <button :class="{ active: section === 'recent' }" @click="section = 'recent'">Récents</button>
+        <button :class="{ active: section === 'recent' }" @click="section = 'recent'">{{ t('recent') }}</button>
       </div>
       <template v-if="section === 'channels'">
         <div class="nav-search" v-if="tvs.length > 20 || search">
@@ -105,7 +110,7 @@
         </template>
       </template>
       <template v-if="section === 'favorites'">
-        <div class="nav-tab-header">Mes Favoris</div>
+        <div class="nav-tab-header">{{ t('myFavorites') }}</div>
         <ul class="nav-list" v-if="favorites.items.length">
           <li class="sub-nav" v-for="i in favorites.items" :key="i.url">
             <img v-if="i.logo" :src="i.logo" class="tv-logo" loading="lazy" alt="" />
@@ -117,10 +122,10 @@
             <button class="fav-btn active" @click.stop="favorites.toggle(i)">★</button>
           </li>
         </ul>
-        <div v-else class="nav-empty">Aucun favori</div>
+        <div v-else class="nav-empty">{{ t('noFavorites') }}</div>
       </template>
       <template v-if="section === 'recent'">
-        <div class="nav-tab-header">Récemment regardés</div>
+        <div class="nav-tab-header">{{ t('recentlyWatched') }}</div>
         <ul class="nav-list" v-if="recent.items.length">
           <li class="sub-nav" v-for="i in recent.items" :key="i.url">
             <img v-if="i.logo" :src="i.logo" class="tv-logo" loading="lazy" alt="" />
@@ -131,7 +136,7 @@
             >{{ i.name }}</a>
           </li>
         </ul>
-        <div v-else class="nav-empty">Aucun récent</div>
+        <div v-else class="nav-empty">{{ t('noRecent') }}</div>
       </template>
     </div>
   </div>
@@ -276,8 +281,7 @@ function navigateToChannel(channel) {
         background: rgba(0, 217, 255, 0.1);
         border: 1px solid var(--border-color);
         color: var(--primary-neon);
-        font-size: 0.95rem;
-        padding: 0.4rem 0.6rem;
+        padding: 0;
         border-radius: 8px;
         cursor: pointer;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -287,6 +291,12 @@ function navigateToChannel(channel) {
         justify-content: center;
         width: 2.2rem;
         height: 2.2rem;
+
+        svg {
+          width: 1.15rem;
+          height: 1.15rem;
+          flex-shrink: 0;
+        }
 
         &:hover {
           background: var(--primary-neon);
@@ -298,8 +308,6 @@ function navigateToChannel(channel) {
 
         &:active { transform: scale(0.95); }
       }
-
-      .share-btn { font-size: 1.1rem; }
 
       .nav-close {
         background: rgba(255, 255, 255, 0.05);
@@ -326,17 +334,17 @@ function navigateToChannel(channel) {
   .nav-tabs {
     display: flex;
     gap: 0;
-    padding: 0.6rem 1rem;
+    padding: 0.6rem 0.8rem;
     border-bottom: 1px solid var(--border-light);
   }
 
   .nav-tab {
     flex: 1;
     text-align: center;
-    padding: 0.5rem 0.3rem;
-    font-size: 0.7rem;
+    padding: 0.5rem 0.2rem;
+    font-size: 0.68rem;
     font-weight: 700;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.03em;
     color: var(--text-tertiary);
     text-decoration: none;
     border-bottom: 2px solid transparent;

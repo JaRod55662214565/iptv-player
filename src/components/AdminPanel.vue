@@ -50,6 +50,7 @@
           <button :class="{ active: tab === 'functions' }" @click="tab = 'functions'">Fonctions</button>
           <button :class="{ active: tab === 'telegram' }" @click="tab = 'telegram'">Telegram</button>
           <button :class="{ active: tab === 'countries' }" @click="tab = 'countries'">Pays</button>
+          <button :class="{ active: tab === 'ipvisits' }" @click="tab = 'ipvisits'">Pages</button>
         </div>
 
         <div v-if="tab === 'visits'" class="admin-content">
@@ -78,6 +79,9 @@
               <div v-if="v.channelName || v.streamUrl" class="visit-channel-info">
                 <span>📺 <b>Chaîne :</b> {{ v.channelName || 'Page d\'accueil' }}</span>
                 <span v-if="v.streamUrl" class="visit-stream-url">🔗 <code>{{ v.streamUrl }}</code></span>
+              </div>
+              <div v-if="getPageBreakdown(v.ip)" class="visit-page-breakdown">
+                <span>📊 <b>Pages:</b> {{ getPageBreakdown(v.ip) }}</span>
               </div>
               <div class="visit-actions">
                 <button v-if="!v.isBanned" class="ban-btn" @click="ban(v.ip)">Bannir</button>
@@ -236,6 +240,25 @@
             </div>
           </div>
         </div>
+
+        <div v-if="tab === 'ipvisits'" class="admin-content">
+          <div class="visit-stats">
+            <div class="stat">IPs suivies: <strong>{{ ipVisits.length }}</strong></div>
+            <button class="refresh-btn" @click="loadIpVisitsData">&#x21bb;</button>
+          </div>
+          <div class="ban-list">
+            <div v-for="entry in ipVisits" :key="entry.ip" class="asn-item">
+              <span class="asn-number"><code>{{ entry.ip }}</code></span>
+              <span class="asn-label">
+                <span v-for="(count, page) in entry.pages" :key="page" style="margin-right: 0.5rem;">
+                  {{ pageEmojis[page] || '📄' }} {{ page }}: {{ count }}
+                </span>
+              </span>
+              <span style="color: var(--text-tertiary); font-size: 0.75rem;">{{ entry.total }} visites</span>
+            </div>
+            <div v-if="ipVisits.length === 0" class="empty">Aucune donnée de visite par page</div>
+          </div>
+        </div>
       </template>
     </div>
   </div>
@@ -254,6 +277,7 @@ const {
   datacenterCount, bannedCount, premiumCount, asnCount,
   login, loadAll, ban, unban, makePremium, removePremium, pushAd,
   addBlockedASN, removeBlockedASN, updateFunctions, updateCountries,
+  ipVisits, loadIpVisits: loadIpVisitsData,
 } = useAdmin();
 
 const isPanelPage = window.location.pathname === '/panel';
@@ -265,6 +289,18 @@ const asnInput = ref('');
 const asnLabel = ref('');
 const allowedCountryInput = ref('');
 const blockedCountryInput = ref('');
+
+const pageEmojis = { accueil: '🏠', player: '▶️', settings: '⚙️', iptv: '📡', captcha: '🛡️', share: '📤', admin: '🔐' };
+
+function getPageBreakdown(ip) {
+  if (!ipVisits.value) return null;
+  const entry = ipVisits.value.find(e => e.ip === ip);
+  if (!entry || !entry.pages) return null;
+  return Object.entries(entry.pages)
+    .sort((a, b) => b[1] - a[1])
+    .map(([page, count]) => `${pageEmojis[page] || '📄'}${page}(${count})`)
+    .join(' ');
+}
 
 // Captcha State
 const captchaA = ref(0);
@@ -930,5 +966,13 @@ function maskChatId(id) {
   font-size: 0.8rem;
   color: var(--text-tertiary);
   font-style: italic;
+}
+
+.visit-page-breakdown {
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--primary-neon);
+  opacity: 0.8;
+  b { color: var(--primary-neon); }
 }
 </style>

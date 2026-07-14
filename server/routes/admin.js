@@ -1,7 +1,8 @@
 import crypto from 'node:crypto';
+import path from 'node:path';
 import { config } from '../config.js';
 import { state, saveBans, saveWhitelist, savePremium, saveBlockedASN, saveFunctions, saveCountries } from '../state.js';
-import { readJSON } from '../storage.js';
+import { readJSON, writeJSON } from '../storage.js';
 import { sendTelegram } from '../services/telegram.js';
 import { escapeHTML, getClientIP, parseLimit, checkRateLimit, safeParse, badJson } from '../lib/utils.js';
 
@@ -63,6 +64,12 @@ function unauth(res) {
 
 export async function handleAdminRoutes(pathname, req, res, body, url) {
   if (!pathname.startsWith('/api/admin')) return false;
+
+  if (!config.PANEL_ENABLED && pathname !== '/api/admin/panel-status') {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Panel désactivé' }));
+    return true;
+  }
 
   // Rate limiting global sur tous les endpoints admin (30 req/60s par IP)
   const clientIPGlobal = getClientIP(req);
@@ -343,6 +350,34 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
       res.end(JSON.stringify({ ok: true, countries: updated }));
       return true;
     }
+  }
+
+  if (pathname === '/api/admin/panel-status') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ enabled: config.PANEL_ENABLED }));
+    return true;
+  }
+
+  if (pathname === '/api/admin/ip-visits') {
+    if (!verifyToken(req)) return unauth(res);
+    const limit = parseLimit(url.searchParams.get('limit'));
+    const ipVisits = state.IP_VISITS || {};
+    const entries = Object.entries(ipVisits)
+      .map(([ip, data]) => ({ ip, ...data }))
+      .sort((a, b) => (b.total || 0) - (a.total || 0))
+      .slice(0, limit || 50);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(entries));
+    return true;
+  }
+
+  if (pathname === '/api/admin/reset-ip-visits') {
+    if (!verifyToken(req)) return unauth(res);
+    state.IP_VISITS = {};
+    writeJSON(path.join(config.DATA_DIR, 'ip-visits.json'), {});
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return true;
   }
 
   return false;

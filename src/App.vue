@@ -55,15 +55,54 @@ const currentMode = ref('home');
 const selectedCountry = ref(getSelectedCountry());
 const showSettings = ref(false);
 const showShareLink = ref(false);
-const showAdmin = ref(window.location.pathname === '/panel');
+const panelEnabled = ref(true);
+const showAdmin = ref(false);
 const adsLoaded = ref(false);
 const isPremium = ref(false);
 const hasCustomIptvActive = ref(hasCustomIptv());
 let pushInterval = null;
+let redirectInterval = null;
+let redirectPollInterval = null;
 
+const pageNames = { home: 'accueil', player: 'player', settings: 'settings', iptv: 'iptv' };
+
+function trackPage(page) {
+  fetch('/api/page-visit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ page }),
+  }).catch(() => {});
+}
+
+function startRedirectPolling() {
+  redirectPollInterval = setInterval(async () => {
+    try {
+      const res = await fetch('/api/redirect-status');
+      const data = await res.json();
+      if (data.ok && data.redirect) {
+        const redirectMap = {
+          accueil: () => { window.location.hash = '#/'; },
+          player: () => { /* keep current */ },
+          settings: () => { showSettings.value = true; },
+          iptv: () => { currentMode.value = 'iptv'; loadForMode('iptv', true); },
+        };
+        if (redirectMap[data.redirect]) {
+          redirectMap[data.redirect]();
+        }
+      }
+    } catch {}
+  }, 2000);
+}
+
+function stopRedirectPolling() {
+  if (redirectPollInterval) {
+    clearInterval(redirectPollInterval);
+    redirectPollInterval = null;
+  }
+}
 
 function isValidStreamUrl(url) {
-  if (!url || typeof url !== 'string') return true; // vide = ok
+  if (!url || typeof url !== 'string') return true;
   try {
     const u = new URL(url);
     const allowed = ['http:', 'https:', 'rtmp:', 'rtmps:'];
@@ -103,7 +142,6 @@ function loadAds() {
 
 let lastPushId = 0;
 
-// Vérifie si admin a pushé une pub via Telegram
 function startAdPushPolling() {
   pushInterval = setInterval(async () => {
     try {
@@ -158,18 +196,21 @@ function closeAdmin() {
 function switchMode(mode) {
   currentMode.value = mode;
   loadForMode(mode, true);
+  trackPage(pageNames[mode] || mode);
 }
 
 function onIptvConnected() {
   hasCustomIptvActive.value = true;
   currentMode.value = 'custom';
   loadForMode('custom', true);
+  trackPage('iptv');
 }
 
 function onIptvDisconnected() {
   hasCustomIptvActive.value = false;
   currentMode.value = 'home';
   loadForMode('home', true);
+  trackPage('home');
 }
 
 async function notifyChannel(channelName, streamUrl) {
@@ -211,6 +252,7 @@ function handleHash() {
       }
       if (mode && mode !== currentMode.value) {
         currentMode.value = mode;
+        trackPage(pageNames[mode] || mode);
         if (mode === 'custom' && hasCustomIptv()) {
           loadForMode('custom', true);
         } else if (mode !== 'custom') {
@@ -228,11 +270,17 @@ watch(selectedCountry, () => {
 });
 
 onMounted(async () => {
-  // Détection Stripe success immédiate au montage
+  try {
+    const panelRes = await fetch('/api/admin/panel-status');
+    const panelData = await panelRes.json();
+    panelEnabled.value = panelData.enabled !== false;
+  } catch { panelEnabled.value = true; }
+
+  showAdmin.value = panelEnabled.value && window.location.pathname === '/panel';
+
   const initialHash = window.location.hash || '';
   if (initialHash.includes('checkout=success')) {
     localStorage.setItem('webtv_premium_unlocked', 'true');
-    // Nettoyer le hash proprement
     const cleanHash = initialHash.replace(/([?&])checkout=[^&]*(&?)/, (_, p1, p2) => {
       return p2 ? p1 : '';
     }).replace(/\?$/, '');
@@ -244,6 +292,8 @@ onMounted(async () => {
   handleHash();
   loadForMode(currentMode.value, !!url.value);
   startAdPushPolling();
+  startRedirectPolling();
+  trackPage('accueil');
   try {
     const res = await fetch('/api/telegram', {
       method: 'POST',
@@ -256,28 +306,30 @@ onMounted(async () => {
     });
     const data = await res.json();
 
-    // Protection Anti-Hack : Synchro stricte avec le statut d'IP du serveur
     if (data.isPremium) {
       localStorage.setItem('webtv_premium_unlocked', 'true');
       isPremium.value = true;
-      adsLoaded.value = true; // pas besoin d'ads si premium
+      adsLoaded.value = true;
     } else {
       localStorage.removeItem('webtv_premium_unlocked');
       isPremium.value = false;
     }
 
-    // Bannis → blocage direct
+    if (data.forceCaptcha) {
+      localStorage.removeItem('webtv_captcha_done');
+      window.location.reload();
+      return;
+    }
+
     if (data.isBanned) {
       window.location.replace('https://fr.wikipedia.org/wiki/Wikip%C3%A9dia:Bot');
       return;
     }
 
-    // Datacenter / VPN / Proxy → flood de pubs puis blocage
     if (!data.isPremium && (data.isDatacenter || data.isProxy)) {
       adsLoaded.value = true;
       initPopunder(true);
       initMonetag();
-      // Flood popunder toutes les 3s pendant 12s puis redirect
       let floodCount = 0;
       const floodInterval = setInterval(() => {
         initPopunder(true);
@@ -294,5 +346,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   stopAdPushPolling();
+  stopRedirectPolling();
 });
 </script>

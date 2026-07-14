@@ -91,3 +91,7 @@ export function fetchCountries() {
 export function updateCountries(countries) {
   return request('/countries', 'POST', countries);
 }
+
+export function fetchIpVisits(limit = 50) {
+  return request(`/ip-visits?limit=${limit}`);
+}

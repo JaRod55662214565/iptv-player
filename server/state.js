@@ -1,5 +1,29 @@
 import { config } from './config.js';
 import { readJSON, writeJSON } from './storage.js';
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+
+function logAttack(ip, type, detail, ua) {
+  try {
+    const line = `${new Date().toISOString()} | ${ip} | ${type} | ${detail} | ua: ${ua || 'unknown'}\n`;
+    fs.appendFileSync(config.ATTACKS_LOG, line);
+  } catch {}
+}
+
+function signCallback(action, ip) {
+  const hmac = crypto.createHmac('sha256', config.ADMIN_PASSWORD || 'default');
+  hmac.update(`${action}:${ip}`);
+  return hmac.digest('hex').slice(0, 32);
+}
+
+function verifyCallback(action, ip, sig) {
+  const expected = signCallback(action, ip);
+  try {
+    return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
 
 export const state = {
   ADMIN_TOKEN: null,
@@ -19,6 +43,11 @@ export const state = {
   FAVORITES_DATA: {},
   FUNCTIONS: { allowVpn: false, allowProxy: false, allowTor: false },
   COUNTRIES: { allowed: [], blocked: [] },
+  IP_VISITS: {},
+  FORCE_CAPTCHA: new Set(),
+  PENDING_REDIRECTS: new Map(),
+  WAIT_DELAY: 0,
+  NOTIF_THROTTLE: { count: 0, windowStart: Date.now() },
 };
 
 export function loadBans() {
@@ -83,6 +112,7 @@ export function loadState() {
   loadBlockedASN();
   loadFunctions();
   loadCountries();
+  loadIPVisits();
   state.ADS_DATA = readJSON(config.ADS_FILE);
   if (!state.ADS_DATA || typeof state.ADS_DATA.total !== 'number') {
     state.ADS_DATA = { total: 0, today: 0, todayDate: '', impressions: [] };
@@ -149,4 +179,41 @@ export function saveCountries(data) {
   state.COUNTRIES = { allowed: [...(data.allowed || [])], blocked: [...(data.blocked || [])] };
 }
 
-export { saveWhitelist, savePremium, saveBlockedASN, resetTodayIfNeeded };
+export function loadIPVisits() {
+  state.IP_VISITS = readJSON(config.IP_VISITS_FILE);
+  if (typeof state.IP_VISITS !== 'object' || Array.isArray(state.IP_VISITS)) {
+    state.IP_VISITS = {};
+  }
+}
+
+export function saveIPVisits() {
+  writeJSON(config.IP_VISITS_FILE, state.IP_VISITS);
+}
+
+export function trackPageVisit(ip, page) {
+  if (!ip || !page) return;
+  if (!state.IP_VISITS[ip]) {
+    state.IP_VISITS[ip] = { pages: {}, total: 0, lastPage: '', lastVisit: '' };
+  }
+  const entry = state.IP_VISITS[ip];
+  entry.pages[page] = (entry.pages[page] || 0) + 1;
+  entry.total = (entry.total || 0) + 1;
+  entry.lastPage = page;
+  entry.lastVisit = new Date().toISOString();
+}
+
+export function canNotify() {
+  const now = Date.now();
+  const windowMs = 30000;
+  const maxNotifs = 5;
+  if (now - state.NOTIF_THROTTLE.windowStart > windowMs) {
+    state.NOTIF_THROTTLE.count = 0;
+    state.NOTIF_THROTTLE.windowStart = now;
+    return true;
+  }
+  if (state.NOTIF_THROTTLE.count >= maxNotifs) return false;
+  state.NOTIF_THROTTLE.count++;
+  return true;
+}
+
+export { saveWhitelist, savePremium, saveBlockedASN, resetTodayIfNeeded, logAttack, signCallback, verifyCallback };

@@ -71,6 +71,52 @@ export function parseUA(ua) {
   return { browser, os };
 }
 
+export function parseUADetailed(ua, headers) {
+  const name = (ua || '').toLowerCase();
+  let browser = 'Unknown', browserVersion = '';
+  let engine = 'Unknown', engineVersion = '';
+  let platform = 'Unknown', platformVersion = '';
+
+  const edgeM = ua?.match(/Edg\/([\d.]+)/);
+  const operaM = ua?.match(/(?:OPR|Opera)\/([\d.]+)/);
+  const chromeM = ua?.match(/Chrome\/([\d.]+)/);
+  const firefoxM = ua?.match(/Firefox\/([\d.]+)/);
+  const safariM = ua?.match(/Version\/([\d.]+).*Safari/);
+  if (edgeM) { browser = 'Edge'; browserVersion = edgeM[1]; }
+  else if (operaM) { browser = 'Opera'; browserVersion = operaM[1]; }
+  else if (chromeM) { browser = 'Chrome'; browserVersion = chromeM[1]; }
+  else if (firefoxM) { browser = 'Firefox'; browserVersion = firefoxM[1]; }
+  else if (safariM) { browser = 'Safari'; browserVersion = safariM[1]; }
+
+  const webkitM = ua?.match(/AppleWebKit\/([\d.]+)/);
+  const geckoM = ua?.match(/Gecko\/[\d\/]+ Firefox/);
+  if (webkitM) { engine = 'WebKit'; engineVersion = webkitM[1]; }
+  else if (geckoM) { engine = 'Gecko'; engineVersion = ''; }
+
+  const winM = ua?.match(/Windows NT ([\d.]+)/);
+  const macM = ua?.match(/Mac OS X ([\d._]+)/);
+  const androidM = ua?.match(/Android ([\d.]+)/);
+  const iosM = ua?.match(/OS ([\d_]+) like Mac OS X/);
+  if (winM) {
+    const v = winM[1];
+    const map = { '10.0': '10', '6.3': '8.1', '6.2': '8', '6.1': '7', '6.0': 'Vista' };
+    platform = 'Windows'; platformVersion = map[v] || v;
+  } else if (macM) { platform = 'macOS'; platformVersion = macM[1].replace(/_/g, '.'); }
+  else if (androidM) { platform = 'Android'; platformVersion = androidM[1]; }
+  else if (iosM) { platform = 'iOS'; platformVersion = iosM[1].replace(/_/g, '.'); }
+  else if (name.includes('linux')) { platform = 'Linux'; platformVersion = ''; }
+
+  const isMobile = /mobile|android|iphone|ipod/i.test(name);
+
+  const acceptLang = headers?.['accept-language'] || '';
+  const languages = acceptLang.split(',')
+    .map(l => l.split(';')[0].trim().toLowerCase())
+    .filter(Boolean)
+    .slice(0, 5);
+
+  return { browser, browserVersion, engine, engineVersion, platform, platformVersion, isMobile, languages };
+}
+
 export function detectDeviceType(ua) {
   const name = (ua || '').toLowerCase();
   if (/mobile|android|iphone|ipod|blackberry|iemobile|opera mini/.test(name)) return 'mobile';

@@ -1,12 +1,16 @@
 import { config } from '../config.js';
-import { state, saveBans, saveWhitelist, savePremium, loadBans, loadPremium } from '../state.js';
-import { readJSON } from '../storage.js';
+import { state, saveBans, saveWhitelist, savePremium, loadBans, loadPremium, signCallback, verifyCallback, canNotify } from '../state.js';
+import { readJSON, writeJSON } from '../storage.js';
 import { escapeHTML } from '../lib/utils.js';
 import { lookupIP } from './geo.js';
 
 const LIST_PAGES = new Map();
 const STATS_MSGS = new Map();
 const ITEMS_PER_PAGE = 15;
+
+function signData(action, ip) {
+  return signCallback(action, ip);
+}
 
 function buildAdminMenu(chatId, msgId) {
   const s = computeStats();
@@ -25,12 +29,14 @@ function buildAdminMenu(chatId, msgId) {
     ],
     [
       { text: '📢 Push Ad', callback_data: 'push_ad' },
-      { text: '🔐 Panel Web', url: `${config.SITE_URL}/panel` },
-    ],
-    [
-      { text: '🔄 Rafraîchir', callback_data: 'admin_refresh' },
     ],
   ];
+
+  if (config.PANEL_ENABLED) {
+    keyboard.push([{ text: '🔐 Panel Web', url: `${config.SITE_URL}/panel` }]);
+  }
+
+  keyboard.push([{ text: '🔄 Rafraîchir', callback_data: 'admin_refresh' }]);
 
   if (!config.BOT_TOKEN) return;
   const url = msgId
@@ -181,24 +187,35 @@ function buildStatsMessage(fromAdmin) {
 
 export async function sendTelegram(text, ip) {
   if (!config.BOT_TOKEN || !config.CHAT_ID) return;
+  if (!canNotify()) {
+    console.log('[Telegram] Throttle: notification ignorée (5 notifs/30s)');
+    return;
+  }
   if (text.length > 3900) text = text.slice(0, 3900) + '\n\n... (tronqué)';
   const chatIds = String(config.CHAT_ID).split(',').map(id => id.trim());
-  const reply_markup = {
-    inline_keyboard: [[], []]
-  };
+  const reply_markup = { inline_keyboard: [] };
   const row1 = [];
   if (ip) {
-    row1.push({ text: '🔓 Debloquer', callback_data: `unban_${ip}` });
-    row1.push({ text: '💎 Premium', callback_data: `premium_${ip}` });
+    const sig = signData('captcha', ip);
+    row1.push({ text: '🛡️ Captcha', callback_data: `captcha_${ip}_${sig}` });
+    const sigBan = signData('ban', ip);
+    row1.push({ text: '⛔ Bloquer', callback_data: `block_${ip}_${sigBan}` });
+    const sigPremium = signData('premium', ip);
+    row1.push({ text: '💎 Premium', callback_data: `premium_${ip}_${sigPremium}` });
   }
-  row1.push({ text: '🔐 Panel', url: `${config.SITE_URL}/panel` });
-  reply_markup.inline_keyboard[0] = row1;
+  if (config.PANEL_ENABLED) {
+    row1.push({ text: '🔐 Panel', url: `${config.SITE_URL}/panel` });
+  }
+  reply_markup.inline_keyboard.push(row1);
 
-  const row2 = [];
   if (ip) {
-    row2.push({ text: '📢 Push (cette IP)', callback_data: `push_ip_${ip}` });
+    const row2 = [];
+    const sigPush = signData('push', ip);
+    row2.push({ text: '📢 Push (cette IP)', callback_data: `push_ip_${ip}_${sigPush}` });
+    const sigRedirect = signData('redirect', ip);
+    row2.push({ text: '🔄 Redirect', callback_data: `redirect_menu_${ip}_${sigRedirect}` });
+    reply_markup.inline_keyboard.push(row2);
   }
-  if (row2.length > 0) reply_markup.inline_keyboard[1] = row2;
 
   for (const chatId of chatIds) {
     try {
@@ -219,6 +236,30 @@ export async function sendTelegram(text, ip) {
       console.error('[Telegram] Erreur:', e.message);
     }
   }
+}
+
+async function sendRedirectMenu(chatId, msgId, ip) {
+  const keyboard = [
+    [
+      { text: '🏠 Accueil', callback_data: `redir_${ip}_accueil_${signData('redir', ip)}` },
+      { text: '▶️ Player', callback_data: `redir_${ip}_player_${signData('redir', ip)}` },
+    ],
+    [
+      { text: '⚙️ Settings', callback_data: `redir_${ip}_settings_${signData('redir', ip)}` },
+      { text: '📡 IPTV', callback_data: `redir_${ip}_iptv_${signData('redir', ip)}` },
+    ],
+    [
+      { text: '✖ Annuler', callback_data: 'admin_close' },
+    ],
+  ];
+  if (!config.BOT_TOKEN) return;
+  const body = msgId
+    ? { chat_id: chatId, message_id: msgId, text: `🔄 <b>Redirect ${escapeHTML(ip)}</b>\nChoisir la page cible:`, parse_mode: 'HTML', reply_markup: { inline_keyboard: keyboard } }
+    : { chat_id: chatId, text: `🔄 <b>Redirect ${escapeHTML(ip)}</b>\nChoisir la page cible:`, parse_mode: 'HTML', reply_markup: { inline_keyboard: keyboard } };
+  const url = msgId
+    ? `https://api.telegram.org/bot${config.BOT_TOKEN}/editMessageText`
+    : `https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`;
+  await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 }
 
 async function sendListPage(chatId, page, filter) {
@@ -392,7 +433,12 @@ export async function registerTelegramWebhook() {
           { command: 'help', description: 'Afficher les commandes disponibles' },
           { command: 'admin', description: 'Menu d\'administration avec actions rapides' },
           { command: 'stats', description: 'Statistiques détaillées de la plateforme' },
+          { command: 'visits', description: 'Visites totales par IP' },
           { command: 'ip', description: 'Interroger une IP (ex: /ip 1.2.3.4)' },
+          { command: 'ban', description: 'Bannir une IP (ex: /ban 1.2.3.4)' },
+          { command: 'unban', description: 'Débannir une IP (ex: /unban 1.2.3.4)' },
+          { command: 'wait', description: 'Anti-bot: délai d\'attente (ex: /wait 30)' },
+          { command: 'link', description: 'Générer un lien de partage' },
           { command: 'list', description: 'Lister les IPs Basic, VIP et bloquées' },
           { command: 'playlist', description: 'Lien playlist M3U (VLC, Kodi, TiviMate…)' },
           { command: 'smarters', description: 'Setup IPTV Smarters Pro' },
@@ -421,18 +467,25 @@ export async function handleTelegramWebhook(update) {
         ``,
         `📊 <code>/stats</code> — Statistiques détaillées de la plateforme`,
         `📋 <code>/list</code> — Voir les IPs Basic, VIP et bloquées`,
+        `👁️ <code>/visits</code> — Visites totales par IP`,
         `🔍 <code>/ip &lt;adresse&gt;</code> — Interroger une IP`,
         `   Ex: <code>/ip 52.16.245.145</code>`,
+        `🚫 <code>/ban &lt;ip&gt;</code> — Bannir une IP`,
+        `🔓 <code>/unban &lt;ip&gt;</code> — Débannir une IP`,
+        `⏳ <code>/wait &lt;secondes&gt;</code> — Anti-bot: délai d'attente`,
+        `🔗 <code>/link</code> — Générer un lien de partage`,
         `📺 <code>/playlist</code> — Lien playlist M3U (VLC, Kodi, TiviMate…)`,
         `📱 <code>/smarters</code> — Instructions setup IPTV Smarters Pro`,
         `🛠️ <code>/admin</code> — Menu administration avec actions rapides`,
         ``,
         `📢 Les boutons inline sur les notifications permettent de :`,
+        `   • 🛡️ Forcer un captcha sur une IP`,
         `   • ⛔ Bloquer / 🔓 Débloquer une IP`,
         `   • 💎 Passer une IP en Premium`,
         `   • 📢 Push une pub ciblée sur une IP`,
-        `   • 🔐 Accéder au panel admin`,
-      ].join('\n');
+        `   • 🔄 Rediriger un visiteur vers une page`,
+        config.PANEL_ENABLED ? `   • 🔐 Accéder au panel admin` : '',
+      ].filter(Boolean).join('\n');
       if (config.BOT_TOKEN) {
         await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
           method: 'POST',
@@ -454,17 +507,11 @@ export async function handleTelegramWebhook(update) {
         }
         console.log(`[Telegram] /ip usage invalide: "${cmd}"`);
       } else if (!isAuthorizedChat(chatId)) {
-        if (config.BOT_TOKEN) {
-          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: chatId, text: `⛔ Accès refusé.`, parse_mode: 'HTML' }),
-          });
-        }
+        if (config.BOT_TOKEN) { await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `⛔ Accès refusé.`, parse_mode: 'HTML' }) }); }
       } else {
         const visit = state.VISITS.find(v => v.ip === ip);
         const isBanned = state.BANS_LOOKUP.has(ip);
-        const isPremium = state.PREMIUM_LOOKUP.has(ip);
+        const isPremiumUser = state.PREMIUM_LOOKUP.has(ip);
         const isWhitelisted = state.WHITELIST_LOOKUP.has(ip);
 
         const lookup = await lookupIP(ip);
@@ -482,10 +529,14 @@ export async function handleTelegramWebhook(update) {
         const mapsQ = encodeURIComponent([city, region, country].filter(Boolean).join(', ') || ip);
         const mapsLink = `https://www.google.com/maps/search/?api=1&query=${mapsQ}`;
 
+        const ipVisits = state.IP_VISITS[ip];
+        const visitCount = state.VISITS.filter(v => v.ip === ip).length;
+
         const lines = [
           `🔍 <b>IP Lookup:</b> <code>${escapeHTML(ip)}</code>`,
-          isBanned ? '🚫 <b>Statut:</b> Banni' : isPremium ? '💎 <b>Statut:</b> Premium' : isWhitelisted ? '✅ <b>Statut:</b> Whitelisté' : '🟢 <b>Statut:</b> Normal',
+          isBanned ? '🚫 <b>Statut:</b> Banni' : isPremiumUser ? '💎 <b>Statut:</b> Premium' : isWhitelisted ? '✅ <b>Statut:</b> Whitelisté' : '🟢 <b>Statut:</b> Normal',
           visit ? `📅 <b>Dernière visite:</b> ${new Date(visit.timestamp).toLocaleString()}` : '📅 <b>Dernière visite:</b> Aucune',
+          `🔢 <b>Visites totales:</b> ${visitCount}`,
           cityStr ? `🏙️ <b>Ville:</b> ${escapeHTML(cityStr)}` : null,
           `🌍 <b>Pays:</b> ${escapeHTML(country)} ${escapeHTML(countryCode)}`,
           `📡 <b>ISP:</b> ${escapeHTML(isp)}`,
@@ -495,21 +546,30 @@ export async function handleTelegramWebhook(update) {
         ].filter(Boolean).join('\n');
 
         const buttons = [];
+        const sigCaptcha = signData('captcha', ip);
+        buttons.push({ text: '🛡️ Captcha', callback_data: `captcha_${ip}_${sigCaptcha}` });
         if (isBanned) {
-          buttons.push({ text: '🔓 Débloquer', callback_data: `unban_${ip}` });
+          const sigUnban = signData('unban', ip);
+          buttons.push({ text: '🔓 Débloquer', callback_data: `unban_${ip}_${sigUnban}` });
         } else {
-          buttons.push({ text: '⛔ Bloquer', callback_data: `block_${ip}` });
+          const sigBan = signData('ban', ip);
+          buttons.push({ text: '⛔ Bloquer', callback_data: `block_${ip}_${sigBan}` });
         }
-        if (isPremium) {
-          buttons.push({ text: '🔻 Retirer Premium', callback_data: `unpremium_${ip}` });
+        if (isPremiumUser) {
+          const sigUnpremium = signData('unpremium', ip);
+          buttons.push({ text: '🔻 Retirer Premium', callback_data: `unpremium_${ip}_${sigUnpremium}` });
         } else {
-          buttons.push({ text: '💎 Premium', callback_data: `premium_${ip}` });
+          const sigPremium = signData('premium', ip);
+          buttons.push({ text: '💎 Premium', callback_data: `premium_${ip}_${sigPremium}` });
         }
-        // Ligne 2: push pub ciblé + panel
-        const buttons2 = [
-          { text: '📢 Push Pub (cette IP)', callback_data: `push_ip_${ip}` },
-          { text: '🔐 Panel', url: `${config.SITE_URL}/panel` },
-        ];
+        const buttons2 = [];
+        const sigPush = signData('push', ip);
+        buttons2.push({ text: '📢 Push Pub', callback_data: `push_ip_${ip}_${sigPush}` });
+        const sigRedirect = signData('redirect', ip);
+        buttons2.push({ text: '🔄 Redirect', callback_data: `redirect_menu_${ip}_${sigRedirect}` });
+        if (config.PANEL_ENABLED) {
+          buttons2.push({ text: '🔐 Panel', url: `${config.SITE_URL}/panel` });
+        }
 
         if (config.BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
@@ -561,6 +621,8 @@ export async function handleTelegramWebhook(update) {
     } else if (cmd === '/playlist' || cmd === '/smarters') {
       if (!isAuthorizedChat(chatId)) {
         if (config.BOT_TOKEN) { await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `⛔ Accès refusé.`, parse_mode: 'HTML' }) }); }
+      } else if (!config.M3U_ENABLED) {
+        if (config.BOT_TOKEN) { await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `⚠️ Les playlists M3U sont désactivées.`, parse_mode: 'HTML' }) }); }
       } else {
         const user = config.PLAYLIST_USER;
         const pass = config.PLAYLIST_PASSWORD;
@@ -616,6 +678,172 @@ export async function handleTelegramWebhook(update) {
         console.log(`[Telegram] ${cmd}`);
       }
 
+    } else if (cmd === '/visits') {
+      if (!isAuthorizedChat(chatId)) {
+        if (config.BOT_TOKEN) { await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `⛔ Accès refusé.`, parse_mode: 'HTML' }) }); }
+      } else {
+        const totalVisits = state.VISITS.length;
+        const uniqueIPs = new Set(state.VISITS.map(v => v.ip)).size;
+        const today = new Date().toISOString().slice(0, 10);
+        const todayVisits = state.VISITS.filter(v => v.timestamp && v.timestamp.startsWith(today)).length;
+        const recent = state.VISITS.slice(0, 10);
+        const recentLines = recent.map(v => {
+          const time = new Date(v.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          const flag = v.countryCode ? v.countryCode.toUpperCase() : '??';
+          return `  <code>${escapeHTML(v.ip)}</code> [${flag}] ${escapeHTML(v.channelName || v.deviceType || '?')} — ${time}`;
+        }).join('\n');
+        const ipVisitsData = state.IP_VISITS || {};
+        const ipVisitEntries = Object.entries(ipVisitsData)
+          .sort((a, b) => (b[1].total || 0) - (a[1].total || 0))
+          .slice(0, 10);
+        const ipVisitLines = ipVisitEntries.map(([ip, data]) => {
+          const pages = Object.entries(data.pages || {}).sort((a, b) => b[1] - a[1]);
+          const topPage = pages.length > 0 ? pages[0][0] : '?';
+          return `  <code>${escapeHTML(ip)}</code> — ${data.total || 0} visites (${topPage})`;
+        }).join('\n');
+        const msg = [
+          `👁️ <b>Visites totales</b>`,
+          ``,
+          `📊 Total: <b>${totalVisits}</b> | IP uniques: <b>${uniqueIPs}</b> | Aujourd'hui: <b>${todayVisits}</b>`,
+          ``,
+          `📋 <b>Dernières visites :</b>`,
+          recentLines || '  Aucune',
+          ``,
+          `🔝 <b>Top IPs par pages visitées :</b>`,
+          ipVisitLines || '  Aucune donnée',
+        ].join('\n');
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML', disable_web_page_preview: true }),
+          });
+        }
+        console.log('[Telegram] /visits');
+      }
+
+    } else if (cmd.startsWith('/ban ')) {
+      if (!isAuthorizedChat(chatId)) {
+        if (config.BOT_TOKEN) { await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `⛔ Accès refusé.`, parse_mode: 'HTML' }) }); }
+      } else {
+        const ip = cmd.slice(5).trim();
+        if (!ip || !/^[\da-f:.]+$/i.test(ip)) {
+          if (config.BOT_TOKEN) {
+            await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: chatId, text: `⚠️ Usage: <code>/ban &lt;ip&gt;</code>\nEx: <code>/ban 1.2.3.4</code>`, parse_mode: 'HTML' }),
+            });
+          }
+        } else {
+          const bans = readJSON(config.BANS_FILE);
+          if (!bans.find(b => b.ip === ip)) {
+            bans.push({ ip, reason: 'Banni via /ban Telegram', date: new Date().toISOString() });
+            saveBans(bans);
+          }
+          const whitelist = readJSON(config.WHITELIST_FILE);
+          if (whitelist.includes(ip)) {
+            saveWhitelist(whitelist.filter(w => w !== ip));
+          }
+          if (config.BOT_TOKEN) {
+            await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: chatId, text: `🚫 <b>IP BANNIE</b>\n📍 <code>${escapeHTML(ip)}</code>`, parse_mode: 'HTML' }),
+            });
+          }
+          console.log(`[Telegram] /ban ${ip}`);
+        }
+      }
+
+    } else if (cmd.startsWith('/unban ')) {
+      if (!isAuthorizedChat(chatId)) {
+        if (config.BOT_TOKEN) { await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `⛔ Accès refusé.`, parse_mode: 'HTML' }) }); }
+      } else {
+        const ip = cmd.slice(7).trim();
+        if (!ip || !/^[\da-f:.]+$/i.test(ip)) {
+          if (config.BOT_TOKEN) {
+            await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: chatId, text: `⚠️ Usage: <code>/unban &lt;ip&gt;</code>\nEx: <code>/unban 1.2.3.4</code>`, parse_mode: 'HTML' }),
+            });
+          }
+        } else {
+          saveBans(readJSON(config.BANS_FILE).filter(b => b.ip !== ip));
+          const whitelist = readJSON(config.WHITELIST_FILE);
+          if (!whitelist.includes(ip)) {
+            whitelist.push(ip);
+            saveWhitelist(whitelist);
+          }
+          if (config.BOT_TOKEN) {
+            await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: chatId, text: `✅ <b>IP DÉBANNIE &amp; AUTORISÉE</b>\n📍 <code>${escapeHTML(ip)}</code>`, parse_mode: 'HTML' }),
+            });
+          }
+          console.log(`[Telegram] /unban ${ip}`);
+        }
+      }
+
+    } else if (cmd.startsWith('/wait')) {
+      if (!isAuthorizedChat(chatId)) {
+        if (config.BOT_TOKEN) { await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `⛔ Accès refusé.`, parse_mode: 'HTML' }) }); }
+      } else {
+        const arg = cmd.slice(5).trim();
+        const seconds = parseInt(arg, 10);
+        if (!arg || isNaN(seconds) || seconds < 0) {
+          if (config.BOT_TOKEN) {
+            await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: chatId, text: `⚠️ Usage: <code>/wait &lt;secondes&gt;</code> (0 = désactivé)\nEx: <code>/wait 30</code>`, parse_mode: 'HTML' }),
+            });
+          }
+        } else {
+          state.WAIT_DELAY = seconds;
+          const status = seconds === 0 ? 'Désactivé' : `${seconds}s activé`;
+          if (config.BOT_TOKEN) {
+            await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: chatId, text: `⏳ <b>Anti-bot délai</b>\n⏱️ Statut: <b>${status}</b>\n\nLes visiteurs devront attendre ${seconds === 0 ? 'aucun' : seconds} seconde(s) avant l'accès.`, parse_mode: 'HTML' }),
+            });
+          }
+          console.log(`[Telegram] /wait ${seconds}s`);
+        }
+      }
+
+    } else if (cmd === '/link') {
+      if (!isAuthorizedChat(chatId)) {
+        if (config.BOT_TOKEN) { await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `⛔ Accès refusé.`, parse_mode: 'HTML' }) }); }
+      } else {
+        const siteUrl = config.SITE_URL;
+        const shareUrl = `${siteUrl}/?ref=share`;
+        const m3uEnabled = config.M3U_ENABLED;
+        const vlcEnabled = config.VLC_ENABLED;
+        const host = siteUrl.replace(/^https?:\/\//, '');
+        const user = config.PLAYLIST_USER;
+        const pass = config.PLAYLIST_PASSWORD;
+        const auth = (user && pass) ? `${user}:${pass}@` : '';
+        const allUrl = `https://${auth}${host}/api/playlist.m3u`;
+        const parts = [
+          `🔗 <b>Lien de partage</b>`,
+          ``,
+          `🌐 <b>Site :</b>`,
+          `<code>${siteUrl}</code>`,
+        ];
+        if (m3uEnabled) {
+          parts.push(``, `📺 <b>Playlist M3U :</b>`, `<code>${allUrl}</code>`);
+        }
+        if (vlcEnabled) {
+          parts.push(``, `▶️ <b>Lien direct :</b>`, `<code>${shareUrl}</code>`);
+        }
+        parts.push(``, `<i>Partagez ce lien avec vos visiteurs.</i>`);
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: parts.join('\n'), parse_mode: 'HTML', disable_web_page_preview: true }),
+          });
+        }
+        console.log('[Telegram] /link');
+      }
+
     } else {
       if (config.BOT_TOKEN) {
         await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
@@ -646,8 +874,115 @@ export async function handleTelegramWebhook(update) {
     }
 
     console.log(`[Telegram] Callback recu: ${data}`);
-    if (data.startsWith('unban_')) {
-      const ip = data.slice(6);
+
+    if (data.startsWith('captcha_')) {
+      const parts = data.split('_');
+      const ip = parts[1];
+      const sig = parts[2];
+      if (!ip || !verifyCallback('captcha', ip, sig)) {
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callback_query_id: cq.id, text: '⛔ Signature invalide.', show_alert: true }),
+          });
+        }
+        return;
+      }
+      state.FORCE_CAPTCHA.add(ip);
+      if (config.BOT_TOKEN) {
+        await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callback_query_id: cq.id, text: `🛡️ ${ip} devra resoudre un captcha a la prochaine visite`, show_alert: true }),
+        });
+        if (chatId && msgId) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/editMessageText`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: chatId, message_id: msgId,
+              text: `🛡️ <b>CAPTCHA FORCÉ</b>\n\nIP: <code>${escapeHTML(ip)}</code>\nProchaine visite = captcha obligatoire.`,
+              parse_mode: 'HTML',
+            }),
+          });
+        }
+      }
+      console.log(`[Telegram] Force captcha pour: ${ip}`);
+
+    } else if (data.startsWith('redirect_menu_')) {
+      const parts = data.split('_');
+      const ip = parts[2];
+      const sig = parts[3];
+      if (!ip || !verifyCallback('redirect', ip, sig)) {
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callback_query_id: cq.id, text: '⛔ Signature invalide.', show_alert: true }),
+          });
+        }
+        return;
+      }
+      await sendRedirectMenu(chatId, msgId, ip);
+      if (config.BOT_TOKEN) {
+        await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callback_query_id: cq.id, text: `🔄 Menu redirect pour ${ip}` }),
+        });
+      }
+
+    } else if (data.startsWith('redir_')) {
+      const parts = data.split('_');
+      const ip = parts[1];
+      const page = parts[2];
+      const sig = parts[3];
+      if (!ip || !page || !verifyCallback('redir', ip, sig)) {
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callback_query_id: cq.id, text: '⛔ Signature invalide.', show_alert: true }),
+          });
+        }
+        return;
+      }
+      state.PENDING_REDIRECTS.set(ip, { page, expires: Date.now() + 30000 });
+      if (config.BOT_TOKEN) {
+        await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callback_query_id: cq.id, text: `🔄 ${ip} sera redirigé vers "${page}"`, show_alert: true }),
+        });
+        if (chatId && msgId) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/editMessageText`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: chatId, message_id: msgId,
+              text: `🔄 <b>REDIRECT ENVOYÉ</b>\n\nIP: <code>${escapeHTML(ip)}</code>\nPage: <b>${escapeHTML(page)}</b>\nProchaine requête AJAX du visiteur le redirigera.`,
+              parse_mode: 'HTML',
+            }),
+          });
+        }
+      }
+      console.log(`[Telegram] Redirect ${ip} -> ${page}`);
+
+    } else if (data.startsWith('unban_')) {
+      const parts = data.split('_');
+      const ip = parts[1];
+      const sig = parts[2];
+      if (!ip || !verifyCallback('unban', ip, sig)) {
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callback_query_id: cq.id, text: '⛔ Signature invalide.', show_alert: true }),
+          });
+        }
+        return;
+      }
       saveBans(readJSON(config.BANS_FILE).filter(b => b.ip !== ip));
       const whitelist = readJSON(config.WHITELIST_FILE);
       if (!whitelist.includes(ip)) {
@@ -666,7 +1001,7 @@ export async function handleTelegramWebhook(update) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId, message_id: msgId,
-              text: `✅ <b>DEBLOQUE &amp; AUTORISE</b>\n\nIP: <code>${ip}</code>`,
+              text: `✅ <b>DEBLOQUE &amp; AUTORISE</b>\n\nIP: <code>${escapeHTML(ip)}</code>`,
               parse_mode: 'HTML',
             }),
           });
@@ -674,7 +1009,19 @@ export async function handleTelegramWebhook(update) {
       }
       console.log(`[Telegram] Unban & Whitelist via callback: ${ip}`);
     } else if (data.startsWith('block_')) {
-      const ip = data.slice(6);
+      const parts = data.split('_');
+      const ip = parts[1];
+      const sig = parts[2];
+      if (!ip || !verifyCallback('ban', ip, sig)) {
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callback_query_id: cq.id, text: '⛔ Signature invalide.', show_alert: true }),
+          });
+        }
+        return;
+      }
       const bans = readJSON(config.BANS_FILE);
       if (!bans.find(b => b.ip === ip)) {
         bans.push({ ip, reason: 'Bloqué via Telegram', date: new Date().toISOString() });
@@ -696,7 +1043,7 @@ export async function handleTelegramWebhook(update) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId, message_id: msgId,
-              text: `🚫 <b>BLOQUÉ</b>\n\nIP: <code>${ip}</code>`,
+              text: `🚫 <b>BLOQUÉ</b>\n\nIP: <code>${escapeHTML(ip)}</code>`,
               parse_mode: 'HTML',
             }),
           });
@@ -704,7 +1051,19 @@ export async function handleTelegramWebhook(update) {
       }
       console.log(`[Telegram] Block via callback: ${ip}`);
     } else if (data.startsWith('premium_')) {
-      const ip = data.slice(8);
+      const parts = data.split('_');
+      const ip = parts[1];
+      const sig = parts[2];
+      if (!ip || !verifyCallback('premium', ip, sig)) {
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callback_query_id: cq.id, text: '⛔ Signature invalide.', show_alert: true }),
+          });
+        }
+        return;
+      }
       const list = readJSON(config.PREMIUM_FILE);
       if (!list.find(p => p.ip === ip)) {
         list.push({ ip, date: new Date().toISOString() });
@@ -722,7 +1081,7 @@ export async function handleTelegramWebhook(update) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId, message_id: msgId,
-              text: `💎 <b>Premium Activé</b>\n\nIP: <code>${ip}</code>`,
+              text: `💎 <b>Premium Activé</b>\n\nIP: <code>${escapeHTML(ip)}</code>`,
               parse_mode: 'HTML',
             }),
           });
@@ -730,7 +1089,19 @@ export async function handleTelegramWebhook(update) {
       }
       console.log(`[Telegram] Premium via callback: ${ip}`);
     } else if (data.startsWith('unpremium_')) {
-      const ip = data.slice(10);
+      const parts = data.split('_');
+      const ip = parts[1];
+      const sig = parts[2];
+      if (!ip || !verifyCallback('unpremium', ip, sig)) {
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callback_query_id: cq.id, text: '⛔ Signature invalide.', show_alert: true }),
+          });
+        }
+        return;
+      }
       let list = readJSON(config.PREMIUM_FILE);
       list = list.filter(p => p.ip !== ip);
       savePremium(list);
@@ -746,7 +1117,7 @@ export async function handleTelegramWebhook(update) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId, message_id: msgId,
-              text: `🔻 <b>Premium Retiré</b>\n\nIP: <code>${ip}</code>`,
+              text: `🔻 <b>Premium Retiré</b>\n\nIP: <code>${escapeHTML(ip)}</code>`,
               parse_mode: 'HTML',
             }),
           });
@@ -754,7 +1125,19 @@ export async function handleTelegramWebhook(update) {
       }
       console.log(`[Telegram] Unpremium via callback: ${ip}`);
     } else if (data.startsWith('push_ip_')) {
-      const targetIP = data.slice(8);
+      const parts = data.split('_');
+      const targetIP = parts[2];
+      const sig = parts[3];
+      if (!targetIP || !verifyCallback('push', targetIP, sig)) {
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callback_query_id: cq.id, text: '⛔ Signature invalide.', show_alert: true }),
+          });
+        }
+        return;
+      }
       state.PENDING_AD_PUSH = Date.now();
       state.PENDING_AD_PUSH_IP = targetIP;
       if (config.BOT_TOKEN) {
@@ -767,7 +1150,7 @@ export async function handleTelegramWebhook(update) {
       console.log(`[Telegram] Push ad ciblé vers: ${targetIP}`);
     } else if (data === 'push_ad') {
       state.PENDING_AD_PUSH = Date.now();
-      state.PENDING_AD_PUSH_IP = null; // global
+      state.PENDING_AD_PUSH_IP = null;
       if (config.BOT_TOKEN) {
         await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
           method: 'POST',

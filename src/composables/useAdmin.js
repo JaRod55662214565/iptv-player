@@ -12,6 +12,7 @@ export function useAdmin() {
   const functions = ref({ allowVpn: false, allowProxy: false, allowTor: false });
   const telegramStatus = ref({ botConfigured: false, chatId: '', webhookUrl: '' });
   const countries = ref({ allowed: [], blocked: [] });
+  const ipVisits = ref([]);
 
   const datacenterCount = computed(() => visits.value.filter(v => v.isDatacenter).length);
   const bannedCount = computed(() => visits.value.filter(v => v.isBanned).length);
@@ -71,8 +72,13 @@ export function useAdmin() {
     if (data && Array.isArray(data.allowed)) countries.value = data;
   }
 
+  async function loadIpVisits() {
+    const data = await adminApi.fetchIpVisits();
+    if (Array.isArray(data)) ipVisits.value = data;
+  }
+
   async function loadAll() {
-    await Promise.allSettled([loadVisits(), loadBans(), loadPremiums(), loadBlockedASN(), loadFunctions(), loadTelegramStatus(), loadCountries()]);
+    await Promise.allSettled([loadVisits(), loadBans(), loadPremiums(), loadBlockedASN(), loadFunctions(), loadTelegramStatus(), loadCountries(), loadIpVisits()]);
   }
 
   async function ban(ip) {
@@ -123,9 +129,9 @@ export function useAdmin() {
 
   return {
     authenticated, loading, loginError,
-    visits, bans, premiums, blockedASN, functions, telegramStatus, countries,
+    visits, bans, premiums, blockedASN, functions, telegramStatus, countries, ipVisits,
     datacenterCount, bannedCount, premiumCount, asnCount,
-    login, loadAll, loadVisits, loadBans, loadPremiums, loadBlockedASN, ban, unban,
+    login, loadAll, loadVisits, loadBans, loadPremiums, loadBlockedASN, loadIpVisits, ban, unban,
     makePremium, removePremium, pushAd,
     addBlockedASN, removeBlockedASN, updateFunctions, updateCountries,
   };

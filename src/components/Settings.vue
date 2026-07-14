@@ -10,56 +10,19 @@
 
       <div class="settings-content">
         <div class="settings-section">
-          <label class="settings-label">{{ t('selectCountry') }}</label>
-          <div class="country-grid">
-            <button
-              v-for="(country, code) in countries"
-              :key="code"
-              class="country-btn"
-              :class="{ 'country-btn-active': selectedCountry === code }"
-              @click="selectCountry(code)"
-            >
-              <img
-                class="country-flag"
-                :src="getFlagUrl(code)"
-                :alt="country.name"
-                @error="(e) => e.target.style.display = 'none'"
-              />
-              <span class="country-code">{{ code }}</span>
-              <span class="country-name">{{ country.name }}</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="settings-section">
           <label class="settings-label">{{ t('language') }}</label>
           <div class="language-options">
             <button
+              v-for="lang in languages"
+              :key="lang.code"
               class="lang-option"
-              :class="{ 'lang-option-active': locale === 'en' }"
-              @click="changeLanguage('en')"
+              :class="{ 'lang-option-active': locale === lang.code }"
+              @click="changeLanguage(lang.code)"
             >
-              English
-            </button>
-            <button
-              class="lang-option"
-              :class="{ 'lang-option-active': locale === 'fr' }"
-              @click="changeLanguage('fr')"
-            >
-              Français
-            </button>
-            <button
-              class="lang-option"
-              :class="{ 'lang-option-active': locale === 'es' }"
-              @click="changeLanguage('es')"
-            >
-              Español
+              <span class="lang-flag">{{ lang.flag }}</span>
+              {{ lang.label }}
             </button>
           </div>
-        </div>
-
-        <div class="info-section">
-          <p class="settings-info">{{ t('settingsInfo') }}</p>
         </div>
 
         <div class="settings-section">
@@ -137,12 +100,6 @@
 import { ref, computed } from "vue";
 import { useI18n } from "../i18n/index.js";
 import {
-  getSelectedCountry,
-  setSelectedCountry,
-  getSupportedCountries,
-  getFlagUrl,
-} from "../utils/geolocation.js";
-import {
   getCustomIptv,
   setCustomIptv,
   clearCustomIptv,
@@ -151,11 +108,16 @@ import {
 
 const { t, locale, setLocale } = useI18n();
 
-const props = defineProps(["isOpen"]);
-const emit = defineEmits(["close", "countryChanged", "iptvConnected", "iptvDisconnected"]);
+const languages = [
+  { code: 'en', label: 'English', flag: '🇬🇧' },
+  { code: 'fr', label: 'Français', flag: '🇫🇷' },
+  { code: 'es', label: 'Español', flag: '🇪🇸' },
+  { code: 'pt', label: 'Português', flag: '🇧🇷' },
+  { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
+];
 
-const countries = computed(() => getSupportedCountries());
-const selectedCountry = ref(getSelectedCountry());
+const props = defineProps(["isOpen"]);
+const emit = defineEmits(["close", "iptvConnected", "iptvDisconnected"]);
 
 const savedCreds = getCustomIptv();
 const iptvServer = ref(savedCreds?.server || "");
@@ -165,13 +127,6 @@ const showPassword = ref(false);
 const connecting = ref(false);
 const isConnected = ref(!!savedCreds);
 const savedServer = ref(savedCreds?.server || "");
-
-function selectCountry(code) {
-  if (setSelectedCountry(code)) {
-    selectedCountry.value = code;
-    emit("countryChanged", code);
-  }
-}
 
 function changeLanguage(lang) {
   setLocale(lang);
@@ -424,21 +379,30 @@ function closeSettings() {
 }
 
 .language-options {
-  display: flex;
-  gap: 1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
 }
 
 .lang-option {
-  flex: 1;
-  padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.9rem 0.6rem;
   background: rgba(0, 217, 255, 0.05);
   border: 2px solid var(--border-light);
   border-radius: 10px;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  .lang-flag {
+    font-size: 1.2rem;
+    line-height: 1;
+  }
 
   &:hover {
     background: rgba(0, 217, 255, 0.1);
@@ -452,6 +416,12 @@ function closeSettings() {
     color: var(--primary-neon);
     box-shadow: 0 0 15px rgba(0, 217, 255, 0.25);
   }
+}
+
+.language-options > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+  max-width: 50%;
+  justify-self: center;
 }
 
 .settings-info {

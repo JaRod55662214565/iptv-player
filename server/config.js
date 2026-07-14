@@ -11,6 +11,9 @@ export const config = {
   CHAT_ID: process.env.TELEGRAM_CHAT_ID || '',
   SITE_URL: process.env.SITE_URL || 'https://localhost',
   WEBHOOK_URL: process.env.WEBHOOK_URL || '',
+  PANEL_ENABLED: process.env.PANEL_ENABLED !== 'false',
+  M3U_ENABLED: process.env.M3U_ENABLED !== 'false',
+  VLC_ENABLED: process.env.VLC_ENABLED !== 'false',
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || '',
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || '',
   STRIPE_ENABLED: process.env.STRIPE_ENABLED !== 'false',
@@ -41,6 +44,9 @@ export const config = {
   PLAYLIST_CACHE_FILE: path.join(DATA_DIR, 'playlist-cache.json'),
   FUNCTIONS_FILE: path.join(DATA_DIR, 'functions.json'),
   COUNTRIES_FILE: path.join(DATA_DIR, 'countries.json'),
+  IP_VISITS_FILE: path.join(DATA_DIR, 'ip-visits.json'),
+  ATTACKS_LOG: path.join(DATA_DIR, 'attacks.log'),
+  IP_BANS_FILE: path.join(DATA_DIR, 'ip-bans.json'),
 };
 
 export function getStripe() {
