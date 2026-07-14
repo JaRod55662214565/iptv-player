@@ -13,11 +13,13 @@ export function useAdmin() {
   const telegramStatus = ref({ botConfigured: false, chatId: '', webhookUrl: '' });
   const countries = ref({ allowed: [], blocked: [] });
   const ipVisits = ref([]);
+  const adsStats = ref({ total: 0, today: 0, impressions: [] });
 
   const datacenterCount = computed(() => visits.value.filter(v => v.isDatacenter).length);
   const bannedCount = computed(() => visits.value.filter(v => v.isBanned).length);
   const premiumCount = computed(() => premiums.value.length);
   const asnCount = computed(() => blockedASN.value.length);
+  const uniqueIPCount = computed(() => new Set(visits.value.map(v => v.ip)).size);
 
   async function login(password) {
     loading.value = true;
@@ -77,8 +79,13 @@ export function useAdmin() {
     if (Array.isArray(data)) ipVisits.value = data;
   }
 
+  async function loadAdsStats() {
+    const data = await adminApi.fetchAdsStats();
+    if (data && typeof data.total !== 'undefined') adsStats.value = data;
+  }
+
   async function loadAll() {
-    await Promise.allSettled([loadVisits(), loadBans(), loadPremiums(), loadBlockedASN(), loadFunctions(), loadTelegramStatus(), loadCountries(), loadIpVisits()]);
+    await Promise.allSettled([loadVisits(), loadBans(), loadPremiums(), loadBlockedASN(), loadFunctions(), loadTelegramStatus(), loadCountries(), loadIpVisits(), loadAdsStats()]);
   }
 
   async function ban(ip) {
@@ -127,12 +134,28 @@ export function useAdmin() {
     await loadCountries();
   }
 
+  async function resetVisitsData() {
+    await adminApi.resetVisits();
+    await loadVisits();
+  }
+
+  async function resetBansData() {
+    await adminApi.resetBans();
+    await loadBans();
+  }
+
+  async function resetIpVisitsData() {
+    await adminApi.resetIpVisits();
+    await loadIpVisits();
+  }
+
   return {
     authenticated, loading, loginError,
-    visits, bans, premiums, blockedASN, functions, telegramStatus, countries, ipVisits,
-    datacenterCount, bannedCount, premiumCount, asnCount,
-    login, loadAll, loadVisits, loadBans, loadPremiums, loadBlockedASN, loadIpVisits, ban, unban,
+    visits, bans, premiums, blockedASN, functions, telegramStatus, countries, ipVisits, adsStats,
+    datacenterCount, bannedCount, premiumCount, asnCount, uniqueIPCount,
+    login, loadAll, loadVisits, loadBans, loadPremiums, loadBlockedASN, loadIpVisits, loadAdsStats, ban, unban,
     makePremium, removePremium, pushAd,
     addBlockedASN, removeBlockedASN, updateFunctions, updateCountries,
+    resetVisitsData, resetBansData, resetIpVisitsData,
   };
 }

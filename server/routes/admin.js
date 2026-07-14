@@ -380,5 +380,22 @@ export async function handleAdminRoutes(pathname, req, res, body, url) {
     return true;
   }
 
+  if (pathname === '/api/admin/reset-visits') {
+    if (!verifyToken(req)) return unauth(res);
+    state.VISITS = [];
+    writeJSON(config.VISITS_FILE, []);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return true;
+  }
+
+  if (pathname === '/api/admin/reset-bans') {
+    if (!verifyToken(req)) return unauth(res);
+    saveBans([]);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return true;
+  }
+
   return false;
 }

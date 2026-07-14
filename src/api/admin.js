@@ -95,3 +95,19 @@ export function updateCountries(countries) {
 export function fetchIpVisits(limit = 50) {
   return request(`/ip-visits?limit=${limit}`);
 }
+
+export function resetVisits() {
+  return request('/reset-visits', 'POST');
+}
+
+export function resetBans() {
+  return request('/reset-bans', 'POST');
+}
+
+export function resetIpVisits() {
+  return request('/reset-ip-visits', 'POST');
+}
+
+export function fetchAdsStats(limit = 20) {
+  return request(`/ads-stats?limit=${limit}`);
+}
