@@ -1,11 +1,12 @@
 // Geolocation utility for country-based content filtering
-// Supports: France (FR), United Kingdom (GB), Germany (DE), Netherlands (NL), Portugal (PT), Tunisia (TN)
+// Supports: France (FR), United Kingdom (GB), Germany (DE), Netherlands (NL), Brazil (BR), Portugal (PT), Tunisia (TN)
 
 const SUPPORTED_COUNTRIES = {
   FR: { name: "France", code: "fr" },
   GB: { name: "United Kingdom", code: "gb" },
   DE: { name: "Germany", code: "de" },
   NL: { name: "Netherlands", code: "nl" },
+  BR: { name: "Brasil", code: "br" },
   PT: { name: "Portugal", code: "pt" },
   TN: { name: "Tunisia", code: "tn" },
 };
@@ -27,7 +28,7 @@ const DEFAULT_COUNTRY = "FR";
 
 /**
  * Get the currently selected country
- * @returns {string} Country code (FR, UK, DE, NL, PT)
+ * @returns {string} Country code (FR, GB, DE, NL, BR, PT, TN)
  */
 export function getSelectedCountry() {
   let stored = localStorage.getItem(STORAGE_KEY);
@@ -44,7 +45,7 @@ export function getSelectedCountry() {
 
 /**
  * Set the selected country
- * @param {string} countryCode - Country code (FR, UK, DE, NL, PT)
+ * @param {string} countryCode - Country code (FR, GB, DE, NL, BR, PT, TN)
  */
 export function setSelectedCountry(countryCode) {
   if (SUPPORTED_COUNTRIES[countryCode]) {
@@ -64,7 +65,7 @@ export function getSupportedCountries() {
 
 /**
  * Get playlist URL for a country and type (2026 Updated)
- * @param {string} countryCode - Country code (FR, UK, DE, NL, PT)
+ * @param {string} countryCode - Country code (FR, GB, DE, NL, BR, PT, TN)
  * @param {string} type - Playlist type (home, iptv, radio)
  * @returns {string} Playlist URL
  */
