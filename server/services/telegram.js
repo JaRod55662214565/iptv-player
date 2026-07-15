@@ -234,8 +234,12 @@ export async function sendTelegram(text, ip) {
           reply_markup,
         }),
       });
-      if (!resp.ok) console.error('[Telegram] Erreur envoi (details masques pour securite)');
-      else console.log('[Telegram] Notification envoyee');
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        console.error(`[Telegram] Erreur envoi: ${err.error_code || resp.status} — ${err.description || 'unknown'}`);
+      } else {
+        console.log('[Telegram] Notification envoyee');
+      }
     } catch (e) {
       console.error('[Telegram] Erreur:', e.message);
     }
