@@ -3,7 +3,7 @@
     <div class="settings-modal">
       <div class="settings-header">
         <h2 class="settings-title" id="settings-title">{{ t('settings') }}</h2>
-        <button class="settings-close" @click="closeSettings" aria-label="Close settings">
+        <button type="button" class="settings-close" @click="closeSettings" aria-label="Close settings">
           &times;
         </button>
       </div>
@@ -15,6 +15,7 @@
             <button
               v-for="lang in languages"
               :key="lang.code"
+              type="button"
               class="lang-option"
               :class="{ 'lang-option-active': locale === lang.code }"
               @click="changeLanguage(lang.code)"
@@ -71,6 +72,7 @@
             </div>
             <button
               v-if="!isConnected"
+              type="button"
               class="iptv-connect-btn"
               @click="handleConnect"
               :disabled="connecting || !iptvServer || !iptvUsername || !iptvPassword"
@@ -80,6 +82,7 @@
             </button>
             <button
               v-else
+              type="button"
               class="iptv-disconnect-btn"
               @click="handleDisconnect"
             >
@@ -91,7 +94,7 @@
       </div>
 
       <div class="settings-footer">
-        <button class="btn-close" @click="closeSettings">{{ t('close') }}</button>
+        <button type="button" class="btn-close" @click="closeSettings">{{ t('close') }}</button>
       </div>
     </div>
   </div>
@@ -246,7 +249,7 @@ function closeSettings() {
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  transition: background 200ms var(--ease-out), color 200ms var(--ease-out), border-color 200ms var(--ease-out), transform 200ms var(--ease-out);
+  transition: background 200ms var(--ease-out), color 200ms var(--ease-out), border-color 200ms var(--ease-out), box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
   font-weight: 300;
   line-height: 1;
 
@@ -254,9 +257,15 @@ function closeSettings() {
     &:hover {
       background: var(--primary-neon);
       color: var(--bg-darker);
+      box-shadow: 0 4px 15px rgba(0, 217, 255, 0.3);
     }
   }
   &:active { transform: scale(0.97); }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-neon);
+    outline-offset: 2px;
+  }
 }
 
 .settings-content {
@@ -302,85 +311,9 @@ function closeSettings() {
   text-transform: uppercase;
 }
 
-.country-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 1rem;
-}
-
-.country-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 1.2rem 0.8rem;
-  background: rgba(0, 217, 255, 0.05);
-  border: 2px solid var(--border-light);
-  border-radius: 12px;
-  cursor: pointer;
-  color: var(--text-secondary);
-  transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
-  gap: 0.6rem;
-  position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(0, 217, 255, 0.2), transparent);
-    transition: left 500ms var(--ease-out);
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    &:hover {
-      background: rgba(0, 217, 255, 0.15);
-      border-color: var(--primary-neon);
-      box-shadow: 0 8px 20px rgba(0, 217, 255, 0.15);
-
-      &::before {
-        left: 100%;
-      }
-    }
-  }
-  &:active { transform: scale(0.97); }
-
-  &.country-btn-active {
-    background: linear-gradient(135deg, rgba(0, 217, 255, 0.25) 0%, rgba(0, 168, 204, 0.15) 100%);
-    border-color: var(--primary-neon);
-    color: var(--primary-neon);
-    box-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
-  }
-}
-
-.country-flag {
-  width: 2.8rem;
-  height: auto;
-  border-radius: 4px;
-  object-fit: cover;
-  border: 1px solid var(--border-light);
-}
-
-.country-code {
-  font-size: 0.65rem;
-  font-weight: 800;
-  color: var(--primary-neon);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.country-name {
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
 .language-options {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.8rem;
 }
 
@@ -397,7 +330,7 @@ function closeSettings() {
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 600;
-  transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
+  transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out), color 200ms var(--ease-out);
 
   .lang-flag {
     font-size: 1.2rem;
@@ -406,11 +339,17 @@ function closeSettings() {
 
   @media (hover: hover) and (pointer: fine) {
     &:hover {
-      background: rgba(0, 217, 255, 0.1);
+      background: rgba(0, 217, 255, 0.12);
       border-color: var(--primary-neon);
+      box-shadow: 0 4px 15px rgba(0, 217, 255, 0.15);
     }
   }
   &:active { transform: scale(0.97); }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-neon);
+    outline-offset: 2px;
+  }
 
   &.lang-option-active {
     background: linear-gradient(135deg, rgba(0, 217, 255, 0.3) 0%, rgba(0, 168, 204, 0.2) 100%);
@@ -420,10 +359,8 @@ function closeSettings() {
   }
 }
 
-.language-options > :last-child:nth-child(odd) {
-  grid-column: 1 / -1;
-  max-width: 50%;
-  justify-self: center;
+.lang-option:nth-child(5) {
+  grid-column: 2;
 }
 
 .settings-info {
@@ -465,10 +402,15 @@ function closeSettings() {
 
   @media (hover: hover) and (pointer: fine) {
     &:hover {
-      box-shadow: 0 12px 30px rgba(0, 217, 255, 0.4);
+      box-shadow: 0 12px 30px rgba(0, 217, 255, 0.45);
     }
   }
   &:active { transform: scale(0.97); }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-neon);
+    outline-offset: 2px;
+  }
 }
 
 .iptv-status {
@@ -585,6 +527,11 @@ function closeSettings() {
     }
     &:active { transform: translateY(-50%) scale(0.9); }
     &:disabled { opacity: 0.2; cursor: not-allowed; }
+
+    &:focus-visible {
+      outline: 2px solid var(--primary-neon);
+      outline-offset: 2px;
+    }
   }
 }
 
@@ -607,10 +554,15 @@ function closeSettings() {
 
   @media (hover: hover) and (pointer: fine) {
     &:hover:not(:disabled) {
-      box-shadow: 0 8px 20px rgba(0, 217, 255, 0.3);
+      box-shadow: 0 8px 25px rgba(0, 217, 255, 0.4);
     }
   }
   &:active:not(:disabled) { transform: scale(0.97); }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-neon);
+    outline-offset: 2px;
+  }
 
   &:disabled {
     opacity: 0.5;
@@ -628,25 +580,32 @@ function closeSettings() {
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), transform 200ms var(--ease-out);
+  transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
 
   @media (hover: hover) and (pointer: fine) {
     &:hover {
       background: rgba(255, 100, 100, 0.25);
       border-color: #ff6666;
+      box-shadow: 0 4px 15px rgba(255, 100, 100, 0.2);
     }
   }
   &:active { transform: scale(0.97); }
+
+  &:focus-visible {
+    outline: 2px solid #ff6666;
+    outline-offset: 2px;
+  }
 }
 
 .spinner-sm {
   display: inline-block;
   width: 1rem;
   height: 1rem;
-  border: 2px solid rgba(0, 0, 0, 0.2);
+  border: 2px solid rgba(5, 5, 15, 0.25);
   border-top-color: var(--bg-darker);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
 }
 
 @keyframes spin {
