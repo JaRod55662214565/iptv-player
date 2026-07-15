@@ -1,5 +1,5 @@
 import { config } from '../config.js';
-import { state, saveBans, saveWhitelist, savePremium, loadBans, loadPremium, signCallback, verifyCallback, canNotify } from '../state.js';
+import { state, saveBans, saveWhitelist, savePremium, loadBans, loadPremium, signCallback, verifyCallback, canNotify, ipToCallbackId, callbackIdToIP } from '../state.js';
 import { readJSON, writeJSON } from '../storage.js';
 import { escapeHTML } from '../lib/utils.js';
 import { lookupIP } from './geo.js';
@@ -195,21 +195,22 @@ export async function sendTelegram(text, ip) {
   const chatIds = String(config.CHAT_ID).split(',').map(id => id.trim());
   const reply_markup = { inline_keyboard: [] };
   if (ip) {
+    const cid = ipToCallbackId(ip);
     const sigCaptcha = signData('captcha', ip);
     const sigPush = signData('push', ip);
     const sigBan = signData('ban', ip);
     const sigPremium = signData('premium', ip);
     const sigRedirect = signData('redirect', ip);
     reply_markup.inline_keyboard.push([
-      { text: '🧩 Captcha', callback_data: `captcha_${ip}_${sigCaptcha}` },
-      { text: '📢 Push', callback_data: `push_ip_${ip}_${sigPush}` },
+      { text: '🧩 Captcha', callback_data: `captcha_${cid}_${sigCaptcha}` },
+      { text: '📢 Push', callback_data: `push_ip_${cid}_${sigPush}` },
     ]);
     reply_markup.inline_keyboard.push([
-      { text: '⛔ Bloquer', callback_data: `block_${ip}_${sigBan}` },
-      { text: '💎 Premium', callback_data: `premium_${ip}_${sigPremium}` },
+      { text: '⛔ Bloquer', callback_data: `block_${cid}_${sigBan}` },
+      { text: '💎 Premium', callback_data: `premium_${cid}_${sigPremium}` },
     ]);
     reply_markup.inline_keyboard.push([
-      { text: '🔄 Redirect', callback_data: `redirect_menu_${ip}_${sigRedirect}` },
+      { text: '🔄 Redirect', callback_data: `redirect_menu_${cid}_${sigRedirect}` },
     ]);
   }
   if (config.PANEL_ENABLED) {
@@ -242,14 +243,15 @@ export async function sendTelegram(text, ip) {
 }
 
 async function sendRedirectMenu(chatId, msgId, ip) {
+  const cid = ipToCallbackId(ip);
   const keyboard = [
     [
-      { text: '🏠 Accueil', callback_data: `redir_${ip}_accueil_${signData('redir', ip)}` },
-      { text: '▶️ Player', callback_data: `redir_${ip}_player_${signData('redir', ip)}` },
+      { text: '🏠 Accueil', callback_data: `redir_${cid}_accueil_${signData('redir', ip)}` },
+      { text: '▶️ Player', callback_data: `redir_${cid}_player_${signData('redir', ip)}` },
     ],
     [
-      { text: '⚙️ Settings', callback_data: `redir_${ip}_settings_${signData('redir', ip)}` },
-      { text: '📡 IPTV', callback_data: `redir_${ip}_iptv_${signData('redir', ip)}` },
+      { text: '⚙️ Settings', callback_data: `redir_${cid}_settings_${signData('redir', ip)}` },
+      { text: '📡 IPTV', callback_data: `redir_${cid}_iptv_${signData('redir', ip)}` },
     ],
     [
       { text: '✖ Annuler', callback_data: 'admin_close' },
@@ -295,95 +297,101 @@ async function buildList(filter, page) {
 
   const basicIPs = allIPs.filter(v => !premiumIPs.has(v.ip) && !banIPs.has(v.ip));
 
-  let totalPages, headerLabel;
-  switch (filter) {
-    case 'premium':
-      totalPages = Math.max(Math.ceil(premiums.length / ITEMS_PER_PAGE), 1);
-      headerLabel = `💎 <b>VIP — Premium (${premiums.length})</b>`;
-      break;
-    case 'ban':
-      totalPages = Math.max(Math.ceil(bans.length / ITEMS_PER_PAGE), 1);
-      headerLabel = `🚫 <b>Bloqués (${bans.length})</b>`;
-      break;
-    case 'basic':
-      totalPages = Math.max(Math.ceil(basicIPs.length / ITEMS_PER_PAGE), 1);
-      headerLabel = `🟢 <b>Basic — Visiteurs (${basicIPs.length})</b>`;
-      break;
-    default:
-      totalPages = Math.max(
-        Math.ceil(premiums.length / ITEMS_PER_PAGE),
-        Math.ceil(bans.length / ITEMS_PER_PAGE),
-        Math.ceil(basicIPs.length / ITEMS_PER_PAGE),
-        1
-      );
-      headerLabel = `📋 <b>Liste des IPs</b>`;
+  function fmtDate(d) {
+    try {
+      const dt = new Date(d);
+      return dt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    } catch { return '?'; }
   }
 
+  function formatPremium(x) {
+    return `💎  <code>${escapeHTML(x.ip)}</code>  ·  ${fmtDate(x.date)}`;
+  }
+  function formatBan(b) {
+    const reason = b.reason ? `\n      ↳ ${escapeHTML(b.reason)}` : '';
+    return `🚫  <code>${escapeHTML(b.ip)}</code>${reason}`;
+  }
+  function formatBasic(v) {
+    const flag = v.countryCode ? v.countryCode.toUpperCase() : '??';
+    const loc = v.country && v.country !== 'Unknown' ? v.country : '';
+    return `🟢  <code>${escapeHTML(v.ip)}</code>  ${flag}${loc ? ' · ' + escapeHTML(loc) : ''}`;
+  }
+
+  const total = { premium: premiums.length, ban: bans.length, basic: basicIPs.length };
+
+  if (filter === 'all') {
+    const MAX_PREVIEW = 8;
+    const premShow = premiums.slice(0, MAX_PREVIEW);
+    const banShow = bans.slice(0, MAX_PREVIEW);
+    const basicShow = basicIPs.slice(0, MAX_PREVIEW);
+
+    const premLines = premShow.length > 0
+      ? premShow.map(formatPremium).join('\n')
+      : '<i>Aucun</i>';
+    const banLines = banShow.length > 0
+      ? banShow.map(formatBan).join('\n')
+      : '<i>Aucun</i>';
+    const basicLines = basicShow.length > 0
+      ? basicShow.map(formatBasic).join('\n')
+      : '<i>Aucun</i>';
+
+    const premOverflow = premiums.length > MAX_PREVIEW ? `  <i>(+${premiums.length - MAX_PREVIEW})</i>` : '';
+    const banOverflow = bans.length > MAX_PREVIEW ? `  <i>(+${bans.length - MAX_PREVIEW})</i>` : '';
+    const basicOverflow = basicIPs.length > MAX_PREVIEW ? `  <i>(+${basicIPs.length - MAX_PREVIEW})</i>` : '';
+
+    const text = [
+      `📋 <b>Liste des IPs</b>`,
+      ``,
+      `💎 <b>VIP</b> <code>${total.premium}</code>${premOverflow}`,
+      premLines,
+      ``,
+      `🚫 <b>Bloqués</b> <code>${total.ban}</code>${banOverflow}`,
+      banLines,
+      ``,
+      `🟢 <b>Visiteurs</b> <code>${total.basic}</code>${basicOverflow}`,
+      basicLines,
+    ].join('\n');
+
+    const keyboard = [
+      [
+        { text: `💎 VIP · ${total.premium}`, callback_data: 'list_filter_premium' },
+        { text: `🚫 Bloqués · ${total.ban}`, callback_data: 'list_filter_ban' },
+      ],
+      [
+        { text: `🟢 Visiteurs · ${total.basic}`, callback_data: 'list_filter_basic' },
+      ],
+      [
+        { text: '✖ Fermer', callback_data: 'list_close' },
+      ],
+    ];
+
+    return { text, keyboard, totalPages: 1, page: 0 };
+  }
+
+  const items = filter === 'premium' ? premiums : filter === 'ban' ? bans : basicIPs;
+  const formatter = filter === 'premium' ? formatPremium : filter === 'ban' ? formatBan : formatBasic;
+  const label = filter === 'premium' ? '💎 <b>VIP</b>' : filter === 'ban' ? '🚫 <b>Bloqués</b>' : '🟢 <b>Visiteurs</b>';
+  const totalPages = Math.max(Math.ceil(items.length / ITEMS_PER_PAGE), 1);
   const p = Math.max(0, Math.min(page, totalPages - 1));
   const start = p * ITEMS_PER_PAGE;
   const end = start + ITEMS_PER_PAGE;
 
-  let text;
+  const lines = items.length > 0
+    ? items.slice(start, end).map(formatter).join('\n')
+    : '<i>Aucune IP dans cette catégorie</i>';
 
-  function formatPremium(x) { return `💎 <code>${escapeHTML(x.ip)}</code> (${new Date(x.date).toLocaleDateString()})`; }
-  function formatBan(b) { return `🚫 <code>${escapeHTML(b.ip)}</code>${b.reason ? ` — ${escapeHTML(b.reason)}` : ''}`; }
-  function formatBasic(v) {
-    const loc = v.countryCode ? `[${v.countryCode}]` : '';
-    const locName = v.country || '?';
-    return `🟢 <code>${escapeHTML(v.ip)}</code> ${loc} ${locName}`;
-  }
-
-  if (filter === 'all') {
-    const premiumLines = premiums.length > 0
-      ? premiums.slice(start, end).map(formatPremium).join('\n') : 'Aucun.';
-    const banLines = bans.length > 0
-      ? bans.slice(start, end).map(formatBan).join('\n') : 'Aucun.';
-    const basicLines = basicIPs.length > 0
-      ? basicIPs.slice(start, end).map(formatBasic).join('\n') : 'Aucun.';
-
-    text = [
-      `${headerLabel} — Page ${p + 1}/${totalPages}`,
-      ``,
-      `💎 <b>VIP — Premium (${premiums.length})</b>`,
-      premiumLines,
-      ``,
-      `🚫 <b>Bloqués (${bans.length})</b>`,
-      banLines,
-      ``,
-      `🟢 <b>Basic — Visiteurs (${basicIPs.length})</b>`,
-      basicLines,
-      ``,
-      `━━━━━━━━━━━━━`,
-      `📊 <b>Résumé</b>`,
-      `💎 VIP: ${premiums.length}  🚫 Bloqués: ${bans.length}  🟢 Basic: ${basicIPs.length}`,
-    ].filter(Boolean).join('\n');
-  } else {
-    const items = filter === 'premium' ? premiums : filter === 'ban' ? bans : basicIPs;
-    const formatter = filter === 'premium' ? formatPremium : filter === 'ban' ? formatBan : formatBasic;
-    const lines = items.length > 0
-      ? items.slice(start, end).map(formatter).join('\n') : 'Aucun.';
-
-    text = [
-      `${headerLabel} — Page ${p + 1}/${totalPages}`,
-      ``,
-      lines,
-      ``,
-      `━━━━━━━━━━━━━`,
-      `📊 <b>Résumé</b>`,
-      `💎 VIP: ${premiums.length}  🚫 Bloqués: ${bans.length}  🟢 Basic: ${basicIPs.length}`,
-    ].filter(Boolean).join('\n');
-  }
+  const text = [
+    `${label}  ·  <code>${items.length}</code> IPs`,
+    `Page ${p + 1}/${totalPages}`,
+    ``,
+    lines,
+  ].join('\n');
 
   const keyboard = [
     [
-      { text: `💎 VIP ${premiums.length}`, callback_data: filter === 'premium' ? 'list_filter_all' : 'list_filter_premium' },
-      { text: `🟢 Basic ${basicIPs.length}`, callback_data: filter === 'basic' ? 'list_filter_all' : 'list_filter_basic' },
-      { text: `🚫 Bloqués ${bans.length}`, callback_data: filter === 'ban' ? 'list_filter_all' : 'list_filter_ban' },
-    ],
-    [
-      { text: '←', callback_data: 'list_prev' },
-      { text: filter === 'all' ? '✖ Fermer' : '↩ Tous', callback_data: filter === 'all' ? 'list_close' : 'list_filter_all' },
-      { text: '→', callback_data: 'list_next' },
+      { text: `←`, callback_data: 'list_prev' },
+      { text: `📋 Tous`, callback_data: 'list_filter_all' },
+      { text: `→`, callback_data: 'list_next' },
     ],
   ];
 
@@ -548,27 +556,28 @@ export async function handleTelegramWebhook(update) {
         ].filter(Boolean).join('\n');
 
         const buttons = [];
+        const cid = ipToCallbackId(ip);
         const sigCaptcha = signData('captcha', ip);
-        buttons.push({ text: '🛡️ Captcha', callback_data: `captcha_${ip}_${sigCaptcha}` });
+        buttons.push({ text: '🛡️ Captcha', callback_data: `captcha_${cid}_${sigCaptcha}` });
         if (isBanned) {
           const sigUnban = signData('unban', ip);
-          buttons.push({ text: '🔓 Débloquer', callback_data: `unban_${ip}_${sigUnban}` });
+          buttons.push({ text: '🔓 Débloquer', callback_data: `unban_${cid}_${sigUnban}` });
         } else {
           const sigBan = signData('ban', ip);
-          buttons.push({ text: '⛔ Bloquer', callback_data: `block_${ip}_${sigBan}` });
+          buttons.push({ text: '⛔ Bloquer', callback_data: `block_${cid}_${sigBan}` });
         }
         if (isPremiumUser) {
           const sigUnpremium = signData('unpremium', ip);
-          buttons.push({ text: '🔻 Retirer Premium', callback_data: `unpremium_${ip}_${sigUnpremium}` });
+          buttons.push({ text: '🔻 Retirer Premium', callback_data: `unpremium_${cid}_${sigUnpremium}` });
         } else {
           const sigPremium = signData('premium', ip);
-          buttons.push({ text: '💎 Premium', callback_data: `premium_${ip}_${sigPremium}` });
+          buttons.push({ text: '💎 Premium', callback_data: `premium_${cid}_${sigPremium}` });
         }
         const buttons2 = [];
         const sigPush = signData('push', ip);
-        buttons2.push({ text: '📢 Push Pub', callback_data: `push_ip_${ip}_${sigPush}` });
+        buttons2.push({ text: '📢 Push Pub', callback_data: `push_ip_${cid}_${sigPush}` });
         const sigRedirect = signData('redirect', ip);
-        buttons2.push({ text: '🔄 Redirect', callback_data: `redirect_menu_${ip}_${sigRedirect}` });
+        buttons2.push({ text: '🔄 Redirect', callback_data: `redirect_menu_${cid}_${sigRedirect}` });
         if (config.PANEL_ENABLED) {
           buttons2.push({ text: '🔐 Panel', url: `${config.SITE_URL}/panel` });
         }
@@ -900,8 +909,9 @@ export async function handleTelegramWebhook(update) {
 
     if (data.startsWith('captcha_')) {
       const parts = data.split('_');
-      const ip = parts[1];
+      const cid = parts[1];
       const sig = parts[2];
+      const ip = callbackIdToIP(cid);
       if (!ip || !verifyCallback('captcha', ip, sig)) {
         if (config.BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
@@ -935,8 +945,9 @@ export async function handleTelegramWebhook(update) {
 
     } else if (data.startsWith('redirect_menu_')) {
       const parts = data.split('_');
-      const ip = parts[2];
+      const cid = parts[2];
       const sig = parts[3];
+      const ip = callbackIdToIP(cid);
       if (!ip || !verifyCallback('redirect', ip, sig)) {
         if (config.BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
@@ -958,9 +969,10 @@ export async function handleTelegramWebhook(update) {
 
     } else if (data.startsWith('redir_')) {
       const parts = data.split('_');
-      const ip = parts[1];
+      const cid = parts[1];
       const page = parts[2];
       const sig = parts[3];
+      const ip = callbackIdToIP(cid);
       if (!ip || !page || !verifyCallback('redir', ip, sig)) {
         if (config.BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
@@ -994,8 +1006,9 @@ export async function handleTelegramWebhook(update) {
 
     } else if (data.startsWith('unban_')) {
       const parts = data.split('_');
-      const ip = parts[1];
+      const cid = parts[1];
       const sig = parts[2];
+      const ip = callbackIdToIP(cid);
       if (!ip || !verifyCallback('unban', ip, sig)) {
         if (config.BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
@@ -1033,8 +1046,9 @@ export async function handleTelegramWebhook(update) {
       console.log(`[Telegram] Unban & Whitelist via callback: ${ip}`);
     } else if (data.startsWith('block_')) {
       const parts = data.split('_');
-      const ip = parts[1];
+      const cid = parts[1];
       const sig = parts[2];
+      const ip = callbackIdToIP(cid);
       if (!ip || !verifyCallback('ban', ip, sig)) {
         if (config.BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
@@ -1075,8 +1089,9 @@ export async function handleTelegramWebhook(update) {
       console.log(`[Telegram] Block via callback: ${ip}`);
     } else if (data.startsWith('premium_')) {
       const parts = data.split('_');
-      const ip = parts[1];
+      const cid = parts[1];
       const sig = parts[2];
+      const ip = callbackIdToIP(cid);
       if (!ip || !verifyCallback('premium', ip, sig)) {
         if (config.BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
@@ -1113,8 +1128,9 @@ export async function handleTelegramWebhook(update) {
       console.log(`[Telegram] Premium via callback: ${ip}`);
     } else if (data.startsWith('unpremium_')) {
       const parts = data.split('_');
-      const ip = parts[1];
+      const cid = parts[1];
       const sig = parts[2];
+      const ip = callbackIdToIP(cid);
       if (!ip || !verifyCallback('unpremium', ip, sig)) {
         if (config.BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {
@@ -1149,8 +1165,9 @@ export async function handleTelegramWebhook(update) {
       console.log(`[Telegram] Unpremium via callback: ${ip}`);
     } else if (data.startsWith('push_ip_')) {
       const parts = data.split('_');
-      const targetIP = parts[2];
+      const cid = parts[2];
       const sig = parts[3];
+      const targetIP = callbackIdToIP(cid);
       if (!targetIP || !verifyCallback('push', targetIP, sig)) {
         if (config.BOT_TOKEN) {
           await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/answerCallbackQuery`, {

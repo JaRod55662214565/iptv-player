@@ -1,10 +1,10 @@
 <template>
   <Teleport to="body">
-    <div v-if="show" class="captcha-overlay">
+    <div v-if="show" class="captcha-overlay" role="dialog" aria-modal="true" aria-labelledby="captcha-title" :ref="modalRef">
       <div class="captcha-modal" @click.stop>
         <div class="captcha-header">
           <div class="captcha-icon">🛡️</div>
-          <h2>{{ t('captcha.title') }}</h2>
+          <h2 id="captcha-title">{{ t('captcha.title') }}</h2>
         </div>
         <p class="captcha-prompt">{{ t('captcha.prompt') }}</p>
         <div class="captcha-equation">
@@ -18,6 +18,7 @@
             :placeholder="t('captcha.placeholder')"
             class="captcha-input"
             autocomplete="off"
+            :aria-label="t('captcha.placeholder')"
             :disabled="loading"
           />
           <p v-if="error" class="captcha-error">{{ t('captcha.wrong') }}</p>
@@ -32,8 +33,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, computed } from 'vue'
 import { useI18n } from '../i18n/index.js'
+import { useModal } from '../composables/useModal.js'
 
 const { t } = useI18n()
 const STORAGE_KEY = 'webtv_captcha_done'
@@ -49,6 +51,8 @@ const error = ref(false)
 const loading = ref(false)
 const inputRef = ref(null)
 let correctAnswer = 0
+
+const { modalRef } = useModal(show, () => { show.value = false })
 
 function generate() {
   const ops = ['+', '-', '×']
@@ -236,16 +240,18 @@ onMounted(async () => {
   font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 2.8rem;
 }
 
-.captcha-btn:hover:not(:disabled) {
-  box-shadow: 0 0 20px rgba(0, 217, 255, 0.4);
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .captcha-btn:hover:not(:disabled) {
+    box-shadow: 0 0 20px rgba(0, 217, 255, 0.4);
+    transform: translateY(-1px);
+  }
 }
 
 .captcha-btn:disabled {

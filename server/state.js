@@ -48,6 +48,7 @@ export const state = {
   PENDING_REDIRECTS: new Map(),
   WAIT_DELAY: 0,
   NOTIF_THROTTLE: { count: 0, windowStart: Date.now() },
+  IP_CALLBACK_MAP: new Map(),
 };
 
 export function loadBans() {
@@ -214,6 +215,16 @@ export function canNotify() {
   if (state.NOTIF_THROTTLE.count >= maxNotifs) return false;
   state.NOTIF_THROTTLE.count++;
   return true;
+}
+
+export function ipToCallbackId(ip) {
+  const short = crypto.createHash('sha256').update(ip).digest('hex').slice(0, 10);
+  state.IP_CALLBACK_MAP.set(short, ip);
+  return short;
+}
+
+export function callbackIdToIP(id) {
+  return state.IP_CALLBACK_MAP.get(id) || null;
 }
 
 export { saveWhitelist, savePremium, saveBlockedASN, resetTodayIfNeeded, logAttack, signCallback, verifyCallback };

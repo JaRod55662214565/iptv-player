@@ -153,18 +153,7 @@ async function handleVisit(req, body) {
     pageBreakdown || null,
   ].filter(Boolean).join('\n');
 
-  const now = Date.now();
-  const lastNotify = state.telegramNotifyCache.get(clientIP);
-  const isIPPremium = state.PREMIUM_LOOKUP.has(clientIP);
-
-  const shouldNotify = !isIPPremium && (!lastNotify || (now - lastNotify > 30 * 60 * 1000));
-
-  if (shouldNotify) {
-    state.telegramNotifyCache.set(clientIP, now);
-    await sendTelegram(msg, session.ip);
-  } else {
-    console.log(`[Telegram] Doublon/Spam ignoré pour l'IP: ${clientIP}`);
-  }
+  await sendTelegram(msg, session.ip);
 
   return session;
 }
@@ -243,6 +232,22 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
     const page = data.page || 'accueil';
     trackPageVisit(clientIP, page);
     saveIPVisits();
+
+    const pageEmojis = {
+      accueil: '🏠', player: '▶️', settings: '⚙️', iptv: '📡',
+      home: '🏠', share: '📤', admin: '🔐', captcha: '🧩',
+    };
+    const emoji = pageEmojis[page] || '📄';
+    const pageBreakdown = formatPageBreakdown(clientIP);
+    const msg = [
+      `${emoji} <b>PAGE: ${escapeHTML(page.toUpperCase())}</b>`,
+      `📍 <b>IP:</b> <code>${escapeHTML(clientIP)}</code>`,
+      pageBreakdown ? `` : null,
+      pageBreakdown ? `📄 <b>Pages visitées :</b>` : null,
+      pageBreakdown || null,
+    ].filter(Boolean).join('\n');
+    await sendTelegram(msg, clientIP);
+
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
     return true;

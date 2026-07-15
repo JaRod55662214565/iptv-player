@@ -1,10 +1,10 @@
 <template>
-  <div v-if="isOpen" class="share-overlay" @click.self="$emit('close')">
+  <div v-if="isOpen" class="share-overlay" @click.self="$emit('close')" role="dialog" aria-modal="true" aria-labelledby="share-title" :ref="modalRef">
     <div class="share-modal">
       <div class="share-header">
         <div class="share-title-wrap">
           <svg class="share-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-          <h2 class="share-title">{{ t('share.title') }}</h2>
+          <h2 class="share-title" id="share-title">{{ t('share.title') }}</h2>
         </div>
         <button class="share-close" @click="$emit('close')" aria-label="Close">&times;</button>
       </div>
@@ -50,6 +50,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useI18n } from '../i18n/index.js';
+import { useModal } from '../composables/useModal.js';
 
 const { t } = useI18n();
 
@@ -60,7 +61,8 @@ const props = defineProps({
   mode: { type: String, default: 'home' }
 });
 
-defineEmits(['close']);
+const emit = defineEmits(['close']);
+const { modalRef } = useModal(computed(() => props.isOpen), () => emit('close'));
 
 const linkInput = ref(null);
 const copied = ref(false);
@@ -114,7 +116,7 @@ const copyToClipboard = async () => {
   z-index: 250;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  animation: fadeIn 0.25s ease-out;
+  animation: fadeIn 200ms var(--ease-out);
 }
 
 @keyframes fadeIn {
@@ -134,7 +136,7 @@ const copyToClipboard = async () => {
     0 24px 80px rgba(0, 0, 0, 0.6),
     0 0 0 1px rgba(0, 217, 255, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideUp 250ms var(--ease-out);
 }
 
 @keyframes slideUp {
@@ -183,15 +185,17 @@ const copyToClipboard = async () => {
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  transition: all 0.2s ease;
+  transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), color 200ms var(--ease-out), transform 200ms var(--ease-out);
   line-height: 1;
 
-  &:hover {
-    background: rgba(255, 100, 100, 0.15);
-    border-color: rgba(255, 100, 100, 0.3);
-    color: #ff6666;
-    transform: rotate(90deg);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: rgba(255, 100, 100, 0.15);
+      border-color: rgba(255, 100, 100, 0.3);
+      color: #ff6666;
+    }
   }
+  &:active { transform: scale(0.97); }
 }
 
 .share-body {
@@ -222,7 +226,7 @@ const copyToClipboard = async () => {
   font-size: 0.8rem;
   font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
   outline: none;
-  transition: all 0.2s ease;
+  transition: border-color 200ms var(--ease-out), background 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
 
   &:focus {
     border-color: rgba(0, 217, 255, 0.4);
@@ -243,18 +247,16 @@ const copyToClipboard = async () => {
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
   white-space: nowrap;
   flex-shrink: 0;
 
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(0, 217, 255, 0.35);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      box-shadow: 0 6px 20px rgba(0, 217, 255, 0.35);
+    }
   }
-
-  &:active {
-    transform: translateY(0);
-  }
+  &:active { transform: scale(0.97); }
 
   &.share-copy-ok {
     background: linear-gradient(135deg, #22c55e, #16a34a);
@@ -281,7 +283,7 @@ const copyToClipboard = async () => {
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   color: #fff;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 200ms var(--ease-out), color 200ms var(--ease-out), box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
   text-decoration: none;
 
   svg {
@@ -289,53 +291,51 @@ const copyToClipboard = async () => {
     height: 22px;
   }
 
-  &:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+    &.social-whatsapp:hover {
+      background: rgba(37, 211, 102, 0.25);
+      color: #25d366;
+      box-shadow: 0 8px 24px rgba(37, 211, 102, 0.25);
+    }
+    &.social-telegram:hover {
+      background: rgba(0, 136, 204, 0.25);
+      color: #0088cc;
+      box-shadow: 0 8px 24px rgba(0, 136, 204, 0.25);
+    }
+    &.social-twitter:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(255, 255, 255, 0.1);
+    }
+    &.social-email:hover {
+      background: rgba(255, 165, 0, 0.2);
+      color: #ffa500;
+      box-shadow: 0 8px 24px rgba(255, 165, 0, 0.2);
+    }
   }
+  &:active { transform: scale(0.95); }
 }
 
 .social-whatsapp {
   background: rgba(37, 211, 102, 0.12);
   border-color: rgba(37, 211, 102, 0.2);
-
-  &:hover {
-    background: rgba(37, 211, 102, 0.25);
-    color: #25d366;
-    box-shadow: 0 8px 24px rgba(37, 211, 102, 0.25);
-  }
 }
 
 .social-telegram {
   background: rgba(0, 136, 204, 0.12);
   border-color: rgba(0, 136, 204, 0.2);
-
-  &:hover {
-    background: rgba(0, 136, 204, 0.25);
-    color: #0088cc;
-    box-shadow: 0 8px 24px rgba(0, 136, 204, 0.25);
-  }
 }
 
 .social-twitter {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.1);
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: #fff;
-    box-shadow: 0 8px 24px rgba(255, 255, 255, 0.1);
-  }
 }
 
 .social-email {
   background: rgba(255, 165, 0, 0.1);
   border-color: rgba(255, 165, 0, 0.2);
-
-  &:hover {
-    background: rgba(255, 165, 0, 0.2);
-    color: #ffa500;
-    box-shadow: 0 8px 24px rgba(255, 165, 0, 0.2);
-  }
 }
 </style>

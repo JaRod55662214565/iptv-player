@@ -1,8 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#00d9ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="2" y="5" width="20" height="14" rx="3" fill="rgba(0,217,255,0.1)" stroke="#00d9ff"/>
-  <rect x="4.5" y="7.5" width="15" height="9" rx="1.5" fill="rgba(0,217,255,0.05)"/>
-  <polygon points="10,9.5 10,14.5 14.5,12" fill="#00d9ff" stroke="none"/>
-  <line x1="9" y1="19" x2="7" y2="21.5" stroke="#00d9ff" stroke-width="1.2"/>
-  <line x1="15" y1="19" x2="17" y2="21.5" stroke="#00d9ff" stroke-width="1.2"/>
-  <line x1="6" y1="21.5" x2="18" y2="21.5" stroke="#00d9ff" stroke-width="1.2"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <defs>
+    <linearGradient id="play-grad" x1="9" y1="7" x2="15" y2="12" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00eaff"/>
+      <stop offset="100%" stop-color="#00b4d8"/>
+    </linearGradient>
+    <linearGradient id="ring-grad" x1="4" y1="4" x2="20" y2="20" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00d9ff" stop-opacity="0.8"/>
+      <stop offset="60%" stop-color="#00d9ff" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#ff00ff" stop-opacity="0.5"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="0.8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Circle ring with gradient stroke -->
+  <circle cx="11" cy="11.5" r="7.5" fill="none" stroke="url(#ring-grad)" stroke-width="1.4" opacity="0.7"/>
+  <!-- Play triangle glow -->
+  <path d="M9 7 L9 16 L16 11.5 Z" fill="#00d9ff" filter="url(#glow)" opacity="0.35"/>
+  <!-- Play triangle -->
+  <path d="M9 7 L9 16 L16 11.5 Z" fill="url(#play-grad)"/>
 </svg>

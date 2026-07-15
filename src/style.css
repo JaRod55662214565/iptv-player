@@ -1,8 +1,8 @@
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   line-height: 1.6;
   font-weight: 400;
-  
+
   /* Color Palette - Silver & Neon */
   --primary-neon: #00d9ff;
   --primary-neon-dark: #00a8cc;
@@ -13,9 +13,39 @@
   --bg-darker: #05050f;
   --text-primary: #ffffff;
   --text-secondary: rgba(255, 255, 255, 0.7);
-  --text-tertiary: rgba(255, 255, 255, 0.4);
+  --text-tertiary: rgba(255, 255, 255, 0.55);
   --border-color: rgba(0, 217, 255, 0.2);
   --border-light: rgba(255, 255, 255, 0.1);
+
+  /* Semantic colors */
+  --color-success: #22c55e;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+  --color-surface: #111118;
+  --color-surface-elevated: #1a1a2e;
+
+  /* Easing curves (strong, per emil-design-eng) */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Spacing grid (4px base) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* Shadows */
+  --shadow-glow: 0 0 20px rgba(0, 217, 255, 0.15);
+  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 body {
@@ -31,9 +61,9 @@ body::before {
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(ellipse at 20% 50%, rgba(0, 217, 255, 0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(255, 0, 255, 0.03) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 80%, rgba(0, 217, 255, 0.02) 0%, transparent 50%);
+    radial-gradient(ellipse at 20% 50%, rgba(0, 217, 255, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(255, 0, 255, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(0, 217, 255, 0.03) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
 }
@@ -46,4 +76,64 @@ a {
 
 a:hover {
   color: var(--primary-neon);
+}
+
+/* Global focus-visible ring */
+:focus-visible {
+  outline: 2px solid var(--primary-neon);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Hover gating for touch devices */
+@media (hover: hover) and (pointer: fine) {
+  .hover-lift:hover {
+    transform: translateY(-2px);
+  }
+  .hover-scale:hover {
+    transform: scale(1.05);
+  }
+}
+
+/* Skip link */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: var(--space-4, 1rem);
+  z-index: 10000;
+  padding: 0.5rem 1rem;
+  background: var(--primary-neon);
+  color: var(--bg-darker);
+  font-weight: 700;
+  font-size: 0.875rem;
+  border-radius: var(--radius-sm, 8px);
+  text-decoration: none;
+  transition: top 0.2s var(--ease-out);
+}
+.skip-link:focus {
+  top: var(--space-4, 1rem);
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }

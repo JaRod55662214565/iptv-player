@@ -1,5 +1,5 @@
 <template>
-  <div class="nav" :class="{ 'nav-open': isOpen }">
+  <nav class="nav" :class="{ 'nav-open': isOpen }" aria-label="Navigation des chaînes">
     <div class="nav-menu" @click="isOpen = true">
       <img class="logo" src="../assets/logo.svg" alt="Web TV" />
     </div>
@@ -68,6 +68,7 @@
               type="text"
               :placeholder="t('searchPlaceholder')"
               class="nav-search-input"
+              :aria-label="t('searchPlaceholder')"
             />
             <button
               v-if="search"
@@ -95,7 +96,7 @@
                 :src="i.meta['tvg-logo']"
                 class="tv-logo"
                 loading="lazy"
-                alt=""
+                :alt="i.name"
               />
               <a
                 v-if="i.isTv"
@@ -104,7 +105,7 @@
                 @click="navigateToChannel(i)"
               >{{ i.name }}</a>
               <span v-else class="group-label">{{ i.name }}</span>
-              <button v-if="i.isTv" class="fav-btn" :class="{ active: favorites.isFavorite(i.url) }" @click.stop="favorites.toggle(i)">★</button>
+              <button v-if="i.isTv" class="fav-btn" :class="{ active: favorites.isFavorite(i.url) }" :aria-label="favorites.isFavorite(i.url) ? 'Retirer des favoris' : 'Ajouter aux favoris'" :aria-pressed="favorites.isFavorite(i.url)" @click.stop="favorites.toggle(i)">★</button>
             </li>
           </ul>
         </template>
@@ -113,13 +114,13 @@
         <div class="nav-tab-header">{{ t('myFavorites') }}</div>
         <ul class="nav-list" v-if="favorites.items.length">
           <li class="sub-nav" v-for="i in favorites.items" :key="i.url">
-            <img v-if="i.logo" :src="i.logo" class="tv-logo" loading="lazy" alt="" />
+            <img v-if="i.logo" :src="i.logo" class="tv-logo" loading="lazy" :alt="i.name" />
             <a
               :class="{ active: i.url == active }"
               :href="'#/?url=' + encodeURIComponent(i.url) + (i.caption ? '&caption=' + encodeURIComponent(i.caption) : '') + '&mode=' + mode"
               @click="navigateToChannel(i)"
             >{{ i.name }}</a>
-            <button class="fav-btn active" @click.stop="favorites.toggle(i)">★</button>
+            <button class="fav-btn active" aria-label="Retirer des favoris" :aria-pressed="true" @click.stop="favorites.toggle(i)">★</button>
           </li>
         </ul>
         <div v-else class="nav-empty">{{ t('noFavorites') }}</div>
@@ -128,7 +129,7 @@
         <div class="nav-tab-header">{{ t('recentlyWatched') }}</div>
         <ul class="nav-list" v-if="recent.items.length">
           <li class="sub-nav" v-for="i in recent.items" :key="i.url">
-            <img v-if="i.logo" :src="i.logo" class="tv-logo" loading="lazy" alt="" />
+            <img v-if="i.logo" :src="i.logo" class="tv-logo" loading="lazy" :alt="i.name" />
             <a
               :class="{ active: i.url == active }"
               :href="'#/?url=' + encodeURIComponent(i.url) + (i.caption ? '&caption=' + encodeURIComponent(i.caption) : '') + '&mode=' + mode"
@@ -139,7 +140,7 @@
         <div v-else class="nav-empty">{{ t('noRecent') }}</div>
       </template>
     </div>
-  </div>
+  </nav>
 </template>
 
 <script setup>
@@ -205,17 +206,20 @@ function navigateToChannel(channel) {
     border: 1px solid rgba(0, 217, 255, 0.2);
     border-radius: 50%;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
     display: flex;
     align-items: center;
     justify-content: center;
 
-    &:hover {
-      background: rgba(0, 217, 255, 0.2);
-      border-color: var(--primary-neon);
-      box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
-      transform: scale(1.1);
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        background: rgba(0, 217, 255, 0.2);
+        border-color: var(--primary-neon);
+        box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
+        transform: scale(1.05);
+      }
     }
+    &:active { transform: scale(0.97); }
 
     .logo {
       width: 1.5rem;
@@ -284,7 +288,7 @@ function navigateToChannel(channel) {
         padding: 0;
         border-radius: 8px;
         cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), color 200ms var(--ease-out), box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
         line-height: 1;
         display: flex;
         align-items: center;
@@ -298,15 +302,16 @@ function navigateToChannel(channel) {
           flex-shrink: 0;
         }
 
-        &:hover {
-          background: var(--primary-neon);
-          border-color: var(--primary-neon);
-          color: var(--bg-darker);
-          box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
-          transform: scale(1.05);
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            background: var(--primary-neon);
+            border-color: var(--primary-neon);
+            color: var(--bg-darker);
+            box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
+            transform: scale(1.05);
+          }
         }
-
-        &:active { transform: scale(0.95); }
+        &:active { transform: scale(0.97); }
       }
 
       .nav-close {
@@ -315,18 +320,25 @@ function navigateToChannel(channel) {
         color: var(--text-primary);
         font-size: 1.4rem;
         cursor: pointer;
-        padding: 0.3rem 0.5rem;
-        border-radius: 6px;
+        padding: 0;
+        width: 2.2rem;
+        height: 2.2rem;
+        border-radius: 10px;
         line-height: 1;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), color 200ms var(--ease-out), transform 200ms var(--ease-out);
         font-weight: 300;
+        display: flex;
+        align-items: center;
+        justify-content: center;
 
-        &:hover {
-          background: rgba(0, 217, 255, 0.2);
-          border-color: var(--primary-neon);
-          color: var(--primary-neon);
-          transform: rotate(90deg);
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            background: rgba(0, 217, 255, 0.2);
+            border-color: var(--primary-neon);
+            color: var(--primary-neon);
+          }
         }
+        &:active { transform: scale(0.97); }
       }
     }
   }
@@ -348,16 +360,18 @@ function navigateToChannel(channel) {
     color: var(--text-tertiary);
     text-decoration: none;
     border-bottom: 2px solid transparent;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: color 200ms var(--ease-out), border-bottom-color 200ms var(--ease-out);
     white-space: nowrap;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     text-transform: uppercase;
 
-    &:hover {
-      color: var(--primary-neon);
-      border-bottom-color: rgba(0, 217, 255, 0.3);
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        color: var(--primary-neon);
+        border-bottom-color: rgba(0, 217, 255, 0.3);
+      }
     }
   }
 
@@ -382,10 +396,13 @@ function navigateToChannel(channel) {
       font-size: 0.75rem;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: color 200ms var(--ease-out), background 200ms var(--ease-out), transform 200ms var(--ease-out);
 
-      &:hover { color: var(--primary-neon); background: rgba(0,217,255,0.05); }
+      @media (hover: hover) and (pointer: fine) {
+        &:hover { color: var(--primary-neon); background: rgba(0,217,255,0.05); }
+      }
       &.active { color: var(--primary-neon); background: rgba(0,217,255,0.1); }
+      &:active { transform: scale(0.97); }
 
       .badge {
         display: inline-block;
@@ -427,8 +444,9 @@ function navigateToChannel(channel) {
       background: rgba(0, 217, 255, 0.05);
       color: var(--text-primary);
       font-size: 0.85rem;
+      font-family: inherit;
       outline: none;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: border-color 200ms var(--ease-out), background 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
 
       &::placeholder { color: var(--text-tertiary); }
 
@@ -451,14 +469,15 @@ function navigateToChannel(channel) {
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: color 200ms var(--ease-out), transform 200ms var(--ease-out);
 
-      &:hover {
-        color: var(--primary-neon);
-        transform: scale(1.2) rotate(90deg);
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
+          color: var(--primary-neon);
+          transform: scale(1.15);
+        }
       }
-
-      &:active { transform: scale(0.9) rotate(90deg); }
+      &:active { transform: scale(0.9); }
     }
   }
 
@@ -549,11 +568,13 @@ function navigateToChannel(channel) {
     display: flex;
     align-items: center;
     min-width: 0;
-    transition: all 0.2s;
+    transition: background 200ms var(--ease-out), padding 200ms var(--ease-out);
 
-    &:hover {
-      background: rgba(0, 217, 255, 0.08);
-      padding-left: 1.4rem;
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        background: rgba(0, 217, 255, 0.08);
+        padding-left: 1.4rem;
+      }
     }
 
     .tv-logo {
@@ -572,7 +593,7 @@ function navigateToChannel(channel) {
       font-size: 0.88rem;
       min-width: 0;
       flex: 1;
-      transition: color 0.2s;
+      transition: color 200ms var(--ease-out);
 
       &:hover {
         color: var(--primary-neon);
@@ -588,9 +609,11 @@ function navigateToChannel(channel) {
     cursor: pointer;
     padding: 0 0.3rem;
     flex-shrink: 0;
-    transition: all 0.2s;
+    transition: color 200ms var(--ease-out), transform 200ms var(--ease-out);
 
-    &:hover { color: #facc15; transform: scale(1.2); }
+    @media (hover: hover) and (pointer: fine) {
+      &:hover { color: #facc15; transform: scale(1.15); }
+    }
     &.active { color: #facc15; }
   }
 

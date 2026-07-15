@@ -1,8 +1,8 @@
 <template>
-  <div class="settings-overlay" v-if="isOpen" @click.self="closeSettings">
+  <div class="settings-overlay" v-if="isOpen" @click.self="closeSettings" role="dialog" aria-modal="true" aria-labelledby="settings-title" :ref="modalRef">
     <div class="settings-modal">
       <div class="settings-header">
-        <h2 class="settings-title">{{ t('settings') }}</h2>
+        <h2 class="settings-title" id="settings-title">{{ t('settings') }}</h2>
         <button class="settings-close" @click="closeSettings" aria-label="Close settings">
           &times;
         </button>
@@ -65,6 +65,7 @@
                   type="button"
                   @click="showPassword = !showPassword"
                   :disabled="isConnected"
+                  :aria-label="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'"
                 >{{ showPassword ? '🙈' : '👁' }}</button>
               </div>
             </div>
@@ -99,6 +100,7 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useI18n } from "../i18n/index.js";
+import { useModal } from "../composables/useModal.js";
 import {
   getCustomIptv,
   setCustomIptv,
@@ -118,6 +120,8 @@ const languages = [
 
 const props = defineProps(["isOpen"]);
 const emit = defineEmits(["close", "iptvConnected", "iptvDisconnected"]);
+
+const { modalRef } = useModal(computed(() => props.isOpen), () => emit('close'));
 
 const savedCreds = getCustomIptv();
 const iptvServer = ref(savedCreds?.server || "");
@@ -188,16 +192,12 @@ function closeSettings() {
   justify-content: center;
   z-index: 200;
   backdrop-filter: blur(8px);
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 200ms var(--ease-out);
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .settings-modal {
@@ -238,27 +238,25 @@ function closeSettings() {
   background: rgba(0, 217, 255, 0.1);
   border: 1px solid var(--border-color);
   color: var(--primary-neon);
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   cursor: pointer;
-  padding: 0.5rem;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.2rem;
+  height: 2.2rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 10px;
+  transition: background 200ms var(--ease-out), color 200ms var(--ease-out), border-color 200ms var(--ease-out), transform 200ms var(--ease-out);
   font-weight: 300;
-  
-  &:hover {
-    background: var(--primary-neon);
-    color: var(--bg-darker);
-    transform: scale(1.1) rotate(90deg);
+  line-height: 1;
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: var(--primary-neon);
+      color: var(--bg-darker);
+    }
   }
-  
-  &:active {
-    transform: scale(0.95) rotate(90deg);
-  }
+  &:active { transform: scale(0.97); }
 }
 
 .settings-content {
@@ -321,7 +319,7 @@ function closeSettings() {
   border-radius: 12px;
   cursor: pointer;
   color: var(--text-secondary);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
   gap: 0.6rem;
   position: relative;
   overflow: hidden;
@@ -334,19 +332,21 @@ function closeSettings() {
     width: 100%;
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(0, 217, 255, 0.2), transparent);
-    transition: left 0.5s;
+    transition: left 500ms var(--ease-out);
   }
 
-  &:hover {
-    background: rgba(0, 217, 255, 0.15);
-    border-color: var(--primary-neon);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0, 217, 255, 0.15);
-    
-    &::before {
-      left: 100%;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: rgba(0, 217, 255, 0.15);
+      border-color: var(--primary-neon);
+      box-shadow: 0 8px 20px rgba(0, 217, 255, 0.15);
+
+      &::before {
+        left: 100%;
+      }
     }
   }
+  &:active { transform: scale(0.97); }
 
   &.country-btn-active {
     background: linear-gradient(135deg, rgba(0, 217, 255, 0.25) 0%, rgba(0, 168, 204, 0.15) 100%);
@@ -397,18 +397,20 @@ function closeSettings() {
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 600;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
 
   .lang-flag {
     font-size: 1.2rem;
     line-height: 1;
   }
 
-  &:hover {
-    background: rgba(0, 217, 255, 0.1);
-    border-color: var(--primary-neon);
-    transform: translateY(-2px);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: rgba(0, 217, 255, 0.1);
+      border-color: var(--primary-neon);
+    }
   }
+  &:active { transform: scale(0.97); }
 
   &.lang-option-active {
     background: linear-gradient(135deg, rgba(0, 217, 255, 0.3) 0%, rgba(0, 168, 204, 0.2) 100%);
@@ -457,19 +459,16 @@ function closeSettings() {
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
   letter-spacing: 0.02em;
   box-shadow: 0 8px 20px rgba(0, 217, 255, 0.3);
 
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 30px rgba(0, 217, 255, 0.4);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      box-shadow: 0 12px 30px rgba(0, 217, 255, 0.4);
+    }
   }
-
-  &:active {
-    transform: translateY(0);
-    box-shadow: 0 4px 12px rgba(0, 217, 255, 0.25);
-  }
+  &:active { transform: scale(0.97); }
 }
 
 .iptv-status {
@@ -540,8 +539,9 @@ function closeSettings() {
     background: rgba(0, 217, 255, 0.05);
     color: var(--text-primary);
     font-size: 0.88rem;
+    font-family: inherit;
     outline: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: border-color 200ms var(--ease-out), background 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
 
     &::placeholder { color: var(--text-tertiary); }
 
@@ -578,9 +578,12 @@ function closeSettings() {
     font-size: 1rem;
     padding: 0.3rem;
     opacity: 0.6;
-    transition: opacity 0.2s;
+    transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
 
-    &:hover { opacity: 1; }
+    @media (hover: hover) and (pointer: fine) {
+      &:hover { opacity: 1; transform: translateY(-50%) scale(1.1); }
+    }
+    &:active { transform: translateY(-50%) scale(0.9); }
     &:disabled { opacity: 0.2; cursor: not-allowed; }
   }
 }
@@ -599,13 +602,15 @@ function closeSettings() {
   font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
   letter-spacing: 0.02em;
 
-  &:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0, 217, 255, 0.3);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover:not(:disabled) {
+      box-shadow: 0 8px 20px rgba(0, 217, 255, 0.3);
+    }
   }
+  &:active:not(:disabled) { transform: scale(0.97); }
 
   &:disabled {
     opacity: 0.5;
@@ -623,12 +628,15 @@ function closeSettings() {
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), transform 200ms var(--ease-out);
 
-  &:hover {
-    background: rgba(255, 100, 100, 0.25);
-    border-color: #ff6666;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: rgba(255, 100, 100, 0.25);
+      border-color: #ff6666;
+    }
   }
+  &:active { transform: scale(0.97); }
 }
 
 .spinner-sm {

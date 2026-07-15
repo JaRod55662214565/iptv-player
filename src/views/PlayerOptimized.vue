@@ -1,15 +1,17 @@
 <template>
   <div class="player-container">
     <div v-if="!playerReady && isLoading" class="skeleton-loader">
-      <div class="skeleton-player"></div>
+      <div class="skeleton-player">
+        <img class="skeleton-logo" src="../assets/logo.svg" alt="" aria-hidden="true" />
+      </div>
       <div class="skeleton-controls"></div>
     </div>
     
     <!-- PAYWALL OVERLAY -->
-    <div v-if="stripeEnabled && premiumChecked && !isPremium && !freeAccess" class="paywall-overlay">
+    <div v-if="stripeEnabled && premiumChecked && !isPremium && !freeAccess" class="paywall-overlay" role="dialog" aria-modal="true" aria-labelledby="paywall-title" :ref="modalRef">
       <div class="paywall-card">
         <div class="paywall-icon">💎</div>
-        <h2 class="paywall-title">Accès Premium Requis</h2>
+        <h2 class="paywall-title" id="paywall-title">Accès Premium Requis</h2>
         <p class="paywall-description">
           Débloquez l'accès illimité à vie à toutes les chaînes de télévision et radios en qualité HD.
         </p>
@@ -33,6 +35,7 @@
         class="video-js vjs-big-play-centered vjs-default-skin"
         playsinline
         crossorigin="anonymous"
+        :aria-label="track || 'Lecteur vidéo'"
       ></video>
     </div>
   </div>
@@ -41,8 +44,9 @@
 <script setup>
 import { useI18n } from '../i18n/index.js';
 import { usePlayer } from '../composables/usePlayer';
-import { ref, toRef, onMounted } from 'vue';
+import { ref, toRef, computed, onMounted } from 'vue';
 import { useToast } from '../stores/toast';
+import { useModal } from '../composables/useModal.js';
 
 const { locale } = useI18n();
 const props = defineProps(['value', 'track']);
@@ -53,6 +57,9 @@ const stripeEnabled = ref(true);
 const premiumChecked = ref(false);
 const checkoutLoading = ref(false);
 const freeAccess = ref(false);
+
+const paywallVisible = computed(() => stripeEnabled.value && premiumChecked.value && !isPremium.value && !freeAccess.value);
+const { modalRef } = useModal(paywallVisible, () => { freeAccess.value = true });
 
 onMounted(async () => {
   try {
@@ -121,11 +128,11 @@ const {
   left: 0;
   width: 100%;
   height: 100%;
-  background: #1a1a1a;
+  background: var(--color-surface, #111118);
   display: flex;
   flex-direction: column;
   z-index: 10;
-  animation: fadeOut 0.3s ease-out 0.5s forwards;
+  animation: fadeOut 200ms var(--ease-out) 0.5s forwards;
 }
 
 @keyframes fadeOut {
@@ -135,15 +142,30 @@ const {
 
 .skeleton-player {
   flex: 1;
-  background: linear-gradient(90deg, #2a2a2a 25%, #3a3a3a 50%, #2a2a2a 75%);
+  background: linear-gradient(90deg, var(--color-surface, #111118) 25%, var(--color-surface-elevated, #1a1a2e) 50%, var(--color-surface, #111118) 75%);
   background-size: 200% 100%;
   animation: skeleton-loading 1.5s infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skeleton-logo {
+  width: 48px;
+  height: 48px;
+  opacity: 0.6;
+  animation: logo-pulse 2s ease-in-out infinite;
+}
+
+@keyframes logo-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
 }
 
 .skeleton-controls {
   height: 50px;
-  background: #1a1a1a;
-  border-top: 1px solid #333;
+  background: var(--color-surface, #111118);
+  border-top: 1px solid var(--border-light, rgba(255,255,255,0.1));
   display: flex;
   align-items: center;
   padding: 0 20px;
@@ -152,7 +174,7 @@ const {
   &::before, &::after {
     content: '';
     height: 8px;
-    background: linear-gradient(90deg, #2a2a2a 25%, #3a3a3a 50%, #2a2a2a 75%);
+    background: linear-gradient(90deg, var(--color-surface, #111118) 25%, var(--color-surface-elevated, #1a1a2e) 50%, var(--color-surface, #111118) 75%);
     background-size: 200% 100%;
     animation: skeleton-loading 1.5s infinite;
   }
@@ -187,8 +209,11 @@ const {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
-  &:hover { background: rgba(0,217,255,0.3); border-color: var(--primary-neon); }
+  transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), transform 200ms var(--ease-out);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover { background: rgba(0,217,255,0.3); border-color: var(--primary-neon); }
+  }
+  &:active { transform: scale(0.97); }
 }
 
 .visit-info-overlay {
@@ -227,7 +252,11 @@ const {
     color: var(--text-tertiary);
     font-size: 1.5rem;
     cursor: pointer;
-    &:hover { color: var(--text-primary); }
+    transition: color 200ms var(--ease-out), transform 200ms var(--ease-out);
+    @media (hover: hover) and (pointer: fine) {
+      &:hover { color: var(--text-primary); }
+    }
+    &:active { transform: scale(0.9); }
   }
 }
 
@@ -271,7 +300,7 @@ const {
   text-align: center;
   box-shadow: 0 10px 40px rgba(0, 217, 255, 0.15);
   color: #fff;
-  animation: scaleUp 0.3s ease-out;
+  animation: scaleUp 250ms var(--ease-out);
 }
 
 @keyframes scaleUp {
@@ -282,12 +311,6 @@ const {
 .paywall-icon {
   font-size: 3rem;
   margin-bottom: 1rem;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
 }
 
 .paywall-title {
@@ -334,11 +357,15 @@ const {
   font-size: 1.05rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.25s;
+  transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
   box-shadow: 0 4px 15px rgba(0, 217, 255, 0.3);
-  &:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 217, 255, 0.5);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover:not(:disabled) {
+      box-shadow: 0 6px 20px rgba(0, 217, 255, 0.5);
+    }
+  }
+  &:active:not(:disabled) {
+    transform: scale(0.97);
   }
   &:disabled {
     opacity: 0.6;
@@ -357,11 +384,16 @@ const {
   font-size: 0.95rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.25s;
-  &:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: #fff;
-    border-color: rgba(255, 255, 255, 0.4);
+  transition: background 200ms var(--ease-out), color 200ms var(--ease-out), border-color 200ms var(--ease-out), transform 200ms var(--ease-out);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+  }
+  &:active {
+    transform: scale(0.97);
   }
 }
 

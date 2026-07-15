@@ -1,4 +1,5 @@
 <template>
+  <a href="#main-content" class="skip-link">Aller au contenu principal</a>
   <Nav
     :tvs="tvs"
     :active="url"
@@ -28,7 +29,9 @@
   <AdminPanel v-if="showAdmin" @close="closeAdmin" />
   <Toast />
   <AdsContainer position="top" />
-  <component :is="currentView" :value="url" :track="caption" />
+  <main id="main-content">
+    <component :is="currentView" :value="url" :track="caption" />
+  </main>
 </template>
 
 <script setup>
@@ -119,14 +122,6 @@ function loadAds() {
   }
   if (adsLoaded.value) return;
 
-  try {
-    const lastAdTime = localStorage.getItem('webtv_last_ad_time');
-    if (lastAdTime && (Date.now() - parseInt(lastAdTime, 10) < 24 * 60 * 60 * 1000)) {
-      console.log('[Ads] Publicité déjà affichée au cours des dernières 24h. Ignoré.');
-      return;
-    }
-  } catch {}
-
   adsLoaded.value = true;
   initMonetag();
 
@@ -154,9 +149,6 @@ function startAdPushPolling() {
           return;
         }
         initPopunder();
-        try {
-          localStorage.setItem('webtv_last_ad_time', Date.now().toString());
-        } catch {}
       }
     } catch {}
   }, 15000);
