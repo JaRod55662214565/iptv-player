@@ -1,5 +1,5 @@
 import { state, trackPageVisit, saveIPVisits, logAttack } from '../state.js';
-import { readJSON, writeJSON, serializeWrite } from '../storage.js';
+import { writeJSON, serializeWrite } from '../storage.js';
 import { config } from '../config.js';
 import { sendTelegram, handleTelegramWebhook } from '../services/telegram.js';
 import { lookupIP } from '../services/geo.js';
@@ -328,7 +328,11 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
     }
     const parsed = safeParse(body);
     const update = parsed.ok ? parsed.data : {};
-    await handleTelegramWebhook(update);
+    try {
+      await handleTelegramWebhook(update);
+    } catch (e) {
+      console.error('[Telegram] Webhook handler error:', e.message);
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
     return true;
