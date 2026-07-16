@@ -5,6 +5,8 @@ export const IPTV_URL = 'https://iptv-org.github.io/iptv/index.m3u';
 export const IPTV_URL_BACKUP = 'https://raw.githubusercontent.com/iptv-org/iptv/master/index.m3u';
 export const RADIO_URL = 'https://iptv-org.github.io/iptv/categories/music.m3u';
 export const RADIO_URL_BACKUP = 'https://raw.githubusercontent.com/iptv-org/iptv/master/categories/music.m3u';
+export const RADIO_HD_URL = 'https://raw.githubusercontent.com/Pulham/Internet-Radio-HQ-URL-playlists/main/Radio%20Stations.m3u';
+export const RADIO_HD_URL_BACKUP = 'https://raw.githubusercontent.com/junguler/m3u-radio-music-playlists/main/main.m3u';
 
 export async function fetchPlaylist(url) {
   const resp = await axios.get(url);

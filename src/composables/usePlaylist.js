@@ -390,6 +390,499 @@ const PINNED_CHANNELS = [
     url: 'https://viamotionhsi.netplus.ch/live/eds/6ter/browser-HLS8/6ter.m3u8',
     isTv: true,
     meta: { 'tvg-id': '6ter.fr@SD', 'tvg-logo': 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/france/6ter-fr.png', 'group-title': 'Divertissement' }
+  },
+  // ── Nouvelles chaînes FR Info ──
+  {
+    name: 'BFM Business',
+    url: 'https://live-cdn-stream-euw1.bfmb.bct.nextradiotv.com/master.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'BFMBusiness.fr@SD', 'tvg-logo': 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/france/bfm-business-fr.png', 'group-title': 'Info' }
+  },
+  {
+    name: 'BFM Lyon',
+    url: 'https://live-cdn-bfmtvlyo-euw1.bfmtv.bct.nextradiotv.com/master.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'BFMLyon.fr@SD', 'tvg-logo': 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/france/bfm-lyon-fr.png', 'group-title': 'Info' }
+  },
+  {
+    name: 'KTO',
+    url: 'https://live-kto.akamaized.net/hls/live/2033284/KTO/master.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'KTO.fr', 'tvg-logo': 'https://i.imgur.com/EY6TsdV.png', 'group-title': 'Info' }
+  },
+  {
+    name: 'Le Media TV',
+    url: 'https://raw.githubusercontent.com/Sibprod/streams/main/ressources/dm/py/hls/lemedia.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'LeMediaTV.fr', 'tvg-logo': 'https://i.imgur.com/OK20oyl.png', 'group-title': 'Info' }
+  },
+  {
+    name: 'Africa 24',
+    url: 'https://africa24.vedge.infomaniak.com/livecast/ik:africa24/manifest.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'Africa24.fr@SD', 'tvg-logo': 'https://i.imgur.com/5BZwRFs.png', 'group-title': 'Info' }
+  },
+  {
+    name: 'Africa 24 English',
+    url: 'https://edge20.vedge.infomaniak.com/livecast/ik:africa24english/manifest.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'Africa24English.fr@SD', 'tvg-logo': 'https://i.imgur.com/5BZwRFs.png', 'group-title': 'Info' }
+  },
+  {
+    name: 'Africanews FR',
+    url: 'https://cdn-euronews.akamaized.net/live/eds/africanews-fr/25050/index.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'AfricanewsFrench.fr@SD', 'tvg-logo': 'https://en.wikipedia.org/wiki/Special:FilePath/Africanews_logo.svg?width=128', 'group-title': 'Info' }
+  },
+  {
+    name: 'France 24 English',
+    url: 'https://live.france24.com/hls/live/2037176/F24_EN_HI_HLS/master_5000.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'France24.en@English', 'tvg-logo': 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/france/france-24-en.png', 'group-title': 'Info' }
+  },
+  {
+    name: 'France 24 Arabic',
+    url: 'https://live.france24.com/hls/live/2037181/F24_AR_HI_HLS/master_5000.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'France24.ar@Arabic', 'tvg-logo': 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/france/france-24-ar.png', 'group-title': 'Info' }
+  },
+  {
+    name: 'Euronews EN',
+    url: 'https://cdn-euronews.akamaized.net/live/eds/euronews-en/25052/index.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'EuronewsEnglish.en@SD', 'tvg-logo': 'https://en.wikipedia.org/wiki/Special:FilePath/Euronews_logo.svg?width=128', 'group-title': 'Info' }
+  },
+  {
+    name: 'Euronews DE',
+    url: 'https://cdn-euronews.akamaized.net/live/eds/euronews-de/25024/index.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'EuronewsGerman.de@SD', 'tvg-logo': 'https://en.wikipedia.org/wiki/Special:FilePath/Euronews_logo.svg?width=128', 'group-title': 'Info' }
+  },
+  {
+    name: 'Euronews ES',
+    url: 'https://cdn-euronews.akamaized.net/live/eds/euronews-es/25025/index.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'EuronewsSpanish.es@SD', 'tvg-logo': 'https://en.wikipedia.org/wiki/Special:FilePath/Euronews_logo.svg?width=128', 'group-title': 'Info' }
+  },
+  {
+    name: 'Euronews IT',
+    url: 'https://cdn-euronews.akamaized.net/live/eds/euronews-it/25027/index.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'EuronewsItalian.it@SD', 'tvg-logo': 'https://en.wikipedia.org/wiki/Special:FilePath/Euronews_logo.svg?width=128', 'group-title': 'Info' }
+  },
+  {
+    name: 'Euronews PT',
+    url: 'https://cdn-euronews.akamaized.net/live/eds/euronews-pt/25028/index.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'EuronewsPortuguese.pt@SD', 'tvg-logo': 'https://en.wikipedia.org/wiki/Special:FilePath/Euronews_logo.svg?width=128', 'group-title': 'Info' }
+  },
+  {
+    name: 'Euronews RU',
+    url: 'https://cdn-euronews.akamaized.net/live/eds/euronews-ru/25029/index.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'EuronewsRussian.ru@SD', 'tvg-logo': 'https://en.wikipedia.org/wiki/Special:FilePath/Euronews_logo.svg?width=128', 'group-title': 'Info' }
+  },
+  // ── Nouvelles chaînes FR Régionales ──
+  {
+    name: 'Lyon Capitale TV',
+    url: 'https://raw.githubusercontent.com/Sibprod/streams/main/ressources/dm/py/hls/lyoncapitale.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'LyonCapitaleTV.fr', 'tvg-logo': 'https://i.imgur.com/4WfnEaj.png', 'group-title': 'Régional' }
+  },
+  {
+    name: 'B Smart TV',
+    url: 'https://raw.githubusercontent.com/Sibprod/streams/main/ressources/dm/py/hls/bsmart.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'BSmartTV.fr@SD', 'tvg-logo': 'https://i.imgur.com/eC1gE4D.png', 'group-title': 'Régional' }
+  },
+  {
+    name: 'Maison & Travaux TV',
+    url: 'https://raw.githubusercontent.com/Sibprod/streams/main/ressources/dm/py/hls/maisonettravaux.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'MaisonTravauxTV.fr', 'tvg-logo': 'https://i.imgur.com/uYpc6nE.png', 'group-title': 'Lifestyle' }
+  },
+  {
+    name: 'Men\'s UP TV',
+    url: 'https://raw.githubusercontent.com/Sibprod/streams/main/ressources/dm/py/hls/mensuptv.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'MensUPTV.fr', 'tvg-logo': 'https://i.imgur.com/5BZwRFs.png', 'group-title': 'Lifestyle' }
+  },
+  {
+    name: 'Into Crime',
+    url: 'https://amg00711-zylo-amg00711c10-rakuten-fr-6731.playouts.now.amagi.tv/playlist.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'IntoCrime.fr', 'tvg-logo': 'https://i.imgur.com/43at4M2.png', 'group-title': 'Documentaires' }
+  },
+  {
+    name: 'ici Elsass',
+    url: 'https://raw.githubusercontent.com/Sibprod/streams/main/ressources/dm/py/hls/icielsass.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'iciElsass.fr', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/fr/6/69/Ici_Elsass.svg', 'group-title': 'Régional' }
+  },
+  {
+    name: '20 Minutes TV',
+    url: 'https://live-20minutestv.digiteka.com/1961167769/index.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': '20MinutesTV.fr@SD', 'tvg-logo': 'https://i.imgur.com/fEjNAps.png', 'group-title': 'Info' }
+  },
+  {
+    name: 'Brionnais TV',
+    url: 'https://stream2.mandarine.media/brionnaistv/brionnaistv/playlist.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'BrionnaisTV.fr@SD', 'tvg-logo': 'https://i.imgur.com/DCZKAQ1.png', 'group-title': 'Régional' }
+  },
+  // ── Sports Internationaux ──
+  {
+    name: 'FIFA+ English',
+    url: 'https://a62dad94.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmFrdXRlblRWLWV1X0ZJRkFQbHVzRW5nbGlzaF9ITFM/playlist.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'FIFAPlus.en', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/FIFA%2B_(2025).svg/700px-FIFA%2B_(2025).svg.png', 'group-title': 'Sport' }
+  },
+  {
+    name: 'FIFA+ Women',
+    url: 'https://cffda8ff.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/U2Ftc3VuZy1nYl9GSUZBUGx1c3dvbWVuX0hMUw/playlist.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'FIFAPlusWomen.en', 'tvg-logo': 'https://i.imgur.com/xy9ZxVO.png', 'group-title': 'Sport' }
+  },
+  {
+    name: 'FIFA+ Spanish',
+    url: 'https://b2b6d5d7.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmFrdXRlblRWLWV1X0ZJRkFQbHVzU3BhbmlzaF9ITFM/playlist.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'FIFAPlus.es', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/FIFA%2B_(2025).svg/700px-FIFA%2B_(2025).svg.png', 'group-title': 'Sport' }
+  },
+  {
+    name: 'Red Bull TV',
+    url: 'https://e7c8f7d5.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmFrdXRlblRWLWdiX1JlZEJ1bGxUVi0xX0hMUw/playlist.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'RedBullTV.int', 'tvg-logo': 'https://github.com/tv-logo/tv-logos/blob/main/countries/international/red-bull-tv-int.png?raw=true', 'group-title': 'Sport' }
+  },
+  {
+    name: 'Motorsport.tv',
+    url: 'https://25dee28f.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmFrdXRlblRWLWV1X01vdG9yc3BvcnR0di0xX0hMUw/playlist.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'MotorsportTV.int', 'tvg-logo': 'https://i.imgur.com/qmczb2N.png', 'group-title': 'Sport' }
+  },
+  {
+    name: 'Teledeporte',
+    url: 'https://d1cctoeg0n48w5.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-mnixw9wn5ugmv/TeledeporteES.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'Teledeporte.es', 'tvg-logo': 'https://i.imgur.com/b0H5f62.png', 'group-title': 'Sport' }
+  },
+  {
+    name: 'Esport3',
+    url: 'https://directes-tv-int.3catdirectes.cat/live-content/esport3-hls/master.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'Esport3.es', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Esport3.svg/330px-Esport3.svg.png', 'group-title': 'Sport' }
+  },
+  {
+    name: 'ERT Sports 1',
+    url: 'http://hbbtvapp.ert.gr/stream.php/v/vid_ertsports_mpeg.2ts',
+    isTv: true,
+    meta: { 'tvg-id': 'ERTSports1.gr', 'tvg-logo': 'https://i.imgur.com/EsczO2H.png', 'group-title': 'Sport' }
+  },
+  {
+    name: 'ERT Sports 2',
+    url: 'http://hbbtvapp.ert.gr/stream.php/v/vid_ertplay2_mpeg.2ts',
+    isTv: true,
+    meta: { 'tvg-id': 'ERTSports2.gr', 'tvg-logo': 'https://i.imgur.com/EsczO2H.png', 'group-title': 'Sport' }
+  },
+  {
+    name: 'RTSH Sport',
+    url: 'http://178.33.11.6:8696/live/rtshsport/playlist.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'RTSHSport.al', 'tvg-logo': 'https://i.postimg.cc/PrqBt2h1/tvrisport.png', 'group-title': 'Sport' }
+  },
+  {
+    name: 'Belarus 5',
+    url: 'https://ngtrk.dc.beltelecom.by/ngtrk/smil:belarus5.smil/playlist.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'Belarus5.by', 'tvg-logo': 'https://i.imgur.com/NJsRFud.png', 'group-title': 'Sport' }
+  },
+  {
+    name: 'TVRI Sport',
+    url: 'https://ott-balancer.tvri.go.id/live/eds/SportHD/hls/SportHD.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'TVRISport.id', 'tvg-logo': '', 'group-title': 'Sport' }
+  },
+  {
+    name: 'San Marino RTV Sport',
+    url: 'https://d2hrvno5bw6tg2.cloudfront.net/smrtv-ch02/smil:ch-02.smil/master.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'SanMarinoRTVSport.sm', 'tvg-logo': '', 'group-title': 'Sport' }
+  },
+  // ── Musique / Radio TV ──
+  {
+    name: 'Melody',
+    url: 'https://raw.githubusercontent.com/Sibprod/streams/main/ressources/dm/py/hls/radiokaraoke.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'Melody.fr', 'tvg-logo': 'https://i.imgur.com/9GVyQ6x.png', 'group-title': 'Musique' }
+  },
+  {
+    name: 'Fun Radio',
+    url: 'https://raw.githubusercontent.com/Sibprod/streams/main/ressources/dm/py/hls/funradiofr.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'FunRadio.fr', 'tvg-logo': 'https://i.imgur.com/wgxuYsQ.png', 'group-title': 'Musique' }
+  },
+  {
+    name: 'Littoral FM TV',
+    url: 'https://live.creacast.com/littoralfm-ch1/stream/playlist.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'LittoralFMTV.fr', 'tvg-logo': 'https://i.imgur.com/DCZKAQ1.png', 'group-title': 'Musique' }
+  },
+  // ── International Entertainment ──
+  {
+    name: 'Pluto TV Movies',
+    url: 'https://jmp2.uk/plu-5f526065e6d44e0007d15083.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'PlutoMovies.us', 'tvg-logo': 'https://images.pluto.tv/channels/5f526065e6d44e0007d15083/colorLogoPNG.png', 'group-title': 'Cinéma' }
+  },
+  {
+    name: 'Pluto TV Comedy',
+    url: 'https://jmp2.uk/plu-5f525ffde6d44e0007d14e68.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'PlutoComedy.us', 'tvg-logo': 'https://images.pluto.tv/channels/5f525ffde6d44e0007d14e68/colorLogoPNG.png', 'group-title': 'Divertissement' }
+  },
+  {
+    name: 'Pluto TV Action',
+    url: 'https://jmp2.uk/plu-5f526146e6d44e0007d153cf.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'PlutoAction.us', 'tvg-logo': 'https://images.pluto.tv/channels/5f526146e6d44e0007d153cf/colorLogoPNG.png', 'group-title': 'Cinéma' }
+  },
+  {
+    name: 'Pluto TV Horror',
+    url: 'https://jmp2.uk/plu-5f52615ae6d44e0007d15436.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'PlutoHorror.us', 'tvg-logo': 'https://images.pluto.tv/channels/5f52615ae6d44e0007d15436/colorLogoPNG.png', 'group-title': 'Cinéma' }
+  },
+  {
+    name: 'Pluto TV Sci-Fi',
+    url: 'https://jmp2.uk/plu-5f526164e6d44e0007d15468.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'PlutoSciFi.us', 'tvg-logo': 'https://images.pluto.tv/channels/5f526164e6d44e0007d15468/colorLogoPNG.png', 'group-title': 'Séries' }
+  },
+  {
+    name: 'Pluto TV Drama',
+    url: 'https://jmp2.uk/plu-5f5260d6e6d44e0007d151c5.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'PlutoDrama.us', 'tvg-logo': 'https://images.pluto.tv/channels/5f5260d6e6d44e0007d151c5/colorLogoPNG.png', 'group-title': 'Séries' }
+  },
+  {
+    name: 'Pluto TV Crime',
+    url: 'https://jmp2.uk/plu-5f526138e6d44e0007d1538d.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'PlutoCrime.us', 'tvg-logo': 'https://images.pluto.tv/channels/5f526138e6d44e0007d1538d/colorLogoPNG.png', 'group-title': 'Séries' }
+  },
+  {
+    name: 'Pluto TV Comedy Central',
+    url: 'https://jmp2.uk/plu-5fd3b8b6e74b4c0007a1e9a6.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'ComedyCentral.us', 'tvg-logo': 'https://images.pluto.tv/channels/5fd3b8b6e74b4c0007a1e9a6/colorLogoPNG.png', 'group-title': 'Divertissement' }
+  },
+  {
+    name: 'Roku Channel',
+    url: 'https://jmp2.uk/plu-5aec55a25e90620007293889.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'RokuChannel.us', 'tvg-logo': 'https://image.roku.com/brand-assets/roku-channel/logo/roku-channel-logo.svg', 'group-title': 'Divertissement' }
+  },
+  {
+    name: 'Samsung TV Plus',
+    url: 'https://jmp2.uk/plu-60b6dd0a1b6e4e0007f9b28b.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'SamsungTVPlus.us', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/f/f3/Samsung_TV_Plus_logo.svg', 'group-title': 'Divertissement' }
+  },
+  // ── VOD / Films ──
+  {
+    name: 'VOD Classic Movies',
+    url: 'https://archive.org/download/classicmovies/classicmovies.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'ClassicMovies.us', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Internet_Archive_logo_and_wordmark.svg/700px-Internet_Archive_logo_and_wordmark.svg.png', 'group-title': 'VOD Films' }
+  },
+  {
+    name: 'VOD Sci-Fi Movies',
+    url: 'https://archive.org/download/sci-fi-movies/sci-fi-movies.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'SciFiMovies.us', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Internet_Archive_logo_and_wordmark.svg/700px-Internet_Archive_logo_and_wordmark.svg.png', 'group-title': 'VOD Films' }
+  },
+  {
+    name: 'VOD Horror Movies',
+    url: 'https://archive.org/download/horror-movies/horror-movies.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'HorrorMovies.us', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Internet_Archive_logo_and_wordmark.svg/700px-Internet_Archive_logo_and_wordmark.svg.png', 'group-title': 'VOD Films' }
+  },
+  {
+    name: 'VOD Action Movies',
+    url: 'https://archive.org/download/action-movies/action-movies.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'ActionMovies.us', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Internet_Archive_logo_and_wordmark.svg/700px-Internet_Archive_logo_and_wordmark.svg.png', 'group-title': 'VOD Films' }
+  },
+  {
+    name: 'VOD Comedy Movies',
+    url: 'https://archive.org/download/comedy-movies/comedy-movies.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'ComedyMovies.us', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Internet_Archive_logo_and_wordmark.svg/700px-Internet_Archive_logo_and_wordmark.svg.png', 'group-title': 'VOD Films' }
+  },
+  {
+    name: 'VOD Drama Movies',
+    url: 'https://archive.org/download/drama-movies/drama-movies.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'DramaMovies.us', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Internet_Archive_logo_and_wordmark.svg/700px-Internet_Archive_logo_and_wordmark.svg.png', 'group-title': 'VOD Films' }
+  },
+  {
+    name: 'VOD Documentary',
+    url: 'https://archive.org/download/documentary-movies/documentary-movies.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'Documentary.us', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Internet_Archive_logo_and_wordmark.svg/700px-Internet_Archive_logo_and_wordmark.svg.png', 'group-title': 'VOD Documentaires' }
+  },
+  {
+    name: 'VOD Animation',
+    url: 'https://archive.org/download/animation-movies/animation-movies.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'AnimationMovies.us', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Internet_Archive_logo_and_wordmark.svg/700px-Internet_Archive_logo_and_wordmark.svg.png', 'group-title': 'VOD Animation' }
+  },
+  // ── Radio HD / FLAC ──
+  {
+    name: 'Radio Paradise (FLAC)',
+    url: 'http://stream.radioparadise.com/flacm',
+    isTv: true,
+    meta: { 'tvg-id': 'RadioParadise.int', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Radio_Paradise_logo.svg/700px-Radio_Paradise_logo.svg.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'Radio Paradise Mellow (FLAC)',
+    url: 'http://stream.radioparadise.com/mellow-flacm',
+    isTv: true,
+    meta: { 'tvg-id': 'RPMellow.int', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Radio_Paradise_logo.svg/700px-Radio_Paradise_logo.svg.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'Radio Paradise Rock (FLAC)',
+    url: 'http://stream.radioparadise.com/rock-flacm',
+    isTv: true,
+    meta: { 'tvg-id': 'RPRock.int', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Radio_Paradise_logo.svg/700px-Radio_Paradise_logo.svg.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'Radio Paradise Beyond (FLAC)',
+    url: 'http://stream.radioparadise.com/beyond-flacm',
+    isTv: true,
+    meta: { 'tvg-id': 'RPBeyond.int', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Radio_Paradise_logo.svg/700px-Radio_Paradise_logo.svg.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'SomaFM Groove Salad (FLAC)',
+    url: 'https://hls.somafm.com/hls/groovesalad/FLAC/program.m3u8',
+    isTv: true,
+    meta: { 'tvg-id': 'SomaFMGrooveSalad.int', 'tvg-logo': 'https://somafm.com/img3/groovesalad-400.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'SomaFM 70s (320k)',
+    url: 'http://ice4.somafm.com/seventies-320-mp3',
+    isTv: true,
+    meta: { 'tvg-id': 'SomaFM70s.int', 'tvg-logo': 'https://somafm.com/img3/seventies-400.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'SomaFM 80s (256k)',
+    url: 'http://ice6.somafm.com/u80s-256-mp3',
+    isTv: true,
+    meta: { 'tvg-id': 'SomaFM80s.int', 'tvg-logo': 'https://somafm.com/img3/u80s-400.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'SomaFM Lush (AAC)',
+    url: 'http://ice5.somafm.com/lush-128-aac',
+    isTv: true,
+    meta: { 'tvg-id': 'SomaFMLush.int', 'tvg-logo': 'https://somafm.com/img3/lush-400.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'SomaFM Reggae (256k)',
+    url: 'http://ice6.somafm.com/reggae-256-mp3',
+    isTv: true,
+    meta: { 'tvg-id': 'SomaFMReggae.int', 'tvg-logo': 'https://somafm.com/img3/reggae-400.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'SomaFM Folk (AAC)',
+    url: 'http://ice2.somafm.com/folkfwd-128-aac',
+    isTv: true,
+    meta: { 'tvg-id': 'SomaFMFolk.int', 'tvg-logo': 'https://somafm.com/img3/folkfwd-400.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'NME Radio 1 (320k)',
+    url: 'http://listen-nme.sharp-stream.com/nme1high.mp3',
+    isTv: true,
+    meta: { 'tvg-id': 'NME1.uk', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/NME_logo.svg/700px-NME_logo.svg.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'NME Radio 2 (320k)',
+    url: 'http://listen-nme.sharp-stream.com/nme2high.mp3',
+    isTv: true,
+    meta: { 'tvg-id': 'NME2.uk', 'tvg-logo': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/NME_logo.svg/700px-NME_logo.svg.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'JB Radio 2 (FLAC)',
+    url: 'http://161.97.135.80:8001/flac',
+    isTv: true,
+    meta: { 'tvg-id': 'JBRadio2.int', 'tvg-logo': 'https://i.imgur.com/JBRadio2.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'Naim Radio (FLAC)',
+    url: 'http://mscp3.live-streams.nl:8360/flac.flac',
+    isTv: true,
+    meta: { 'tvg-id': 'NaimRadio.uk', 'tvg-logo': 'https://i.imgur.com/NaimRadio.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'Radio Caroline',
+    url: 'http://78.129.202.200:8030/;',
+    isTv: true,
+    meta: { 'tvg-id': 'RadioCaroline.uk', 'tvg-logo': 'https://i.imgur.com/RadioCaroline.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'Linn Radio (FLAC)',
+    url: 'http://radio.linn.co.uk:8003/stream',
+    isTv: true,
+    meta: { 'tvg-id': 'LinnRadio.uk', 'tvg-logo': 'https://i.imgur.com/LinnRadio.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'New Clear Radio (320k)',
+    url: 'http://live.ncradio.fm/320',
+    isTv: true,
+    meta: { 'tvg-id': 'NewClearRadio.int', 'tvg-logo': 'https://i.imgur.com/NewClearRadio.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'HILINE FLAC',
+    url: 'http://mscp2.live-streams.nl:8100/flac.flac',
+    isTv: true,
+    meta: { 'tvg-id': 'HiLineFLAC.int', 'tvg-logo': 'https://i.imgur.com/HiLine.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'HILINE Pop',
+    url: 'http://mediaserv30.live-streams.nl:8086/live',
+    isTv: true,
+    meta: { 'tvg-id': 'HiLinePop.int', 'tvg-logo': 'https://i.imgur.com/HiLine.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'HILINE Gold',
+    url: 'http://mediaserv30.live-streams.nl:8000/live',
+    isTv: true,
+    meta: { 'tvg-id': 'HiLineGold.int', 'tvg-logo': 'https://i.imgur.com/HiLine.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'HILINE Classical',
+    url: 'http://mediaserv30.live-streams.nl:8088/live',
+    isTv: true,
+    meta: { 'tvg-id': 'HiLineClassical.int', 'tvg-logo': 'https://i.imgur.com/HiLine.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'Radio Singsing (FLAC)',
+    url: 'http://stream.sing-sing-bis.org:8000/singsingFlac',
+    isTv: true,
+    meta: { 'tvg-id': 'RadioSingsing.int', 'tvg-logo': 'https://i.imgur.com/Singsing.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: 'Motherearth (FLAC)',
+    url: 'https://motherearth.streamserver24.com/listen/motherearth/motherearth.flac-lo',
+    isTv: true,
+    meta: { 'tvg-id': 'Motherearth.int', 'tvg-logo': 'https://i.imgur.com/Motherearth.png', 'group-title': 'Radio HD' }
+  },
+  {
+    name: '9128 Ambient',
+    url: 'https://streams.radio.co/s0aa1e6f4a/listen',
+    isTv: true,
+    meta: { 'tvg-id': '9128Ambient.int', 'tvg-logo': 'https://i.imgur.com/9128.png', 'group-title': 'Radio HD' }
   }
 ];
 
