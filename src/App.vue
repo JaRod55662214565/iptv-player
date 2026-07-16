@@ -29,6 +29,9 @@
   <AdminPanel v-if="showAdmin" @close="closeAdmin" />
   <Toast />
   <AdsContainer position="top" />
+  <div v-if="isWaiting" class="wait-overlay">
+    <div class="wait-spinner"></div>
+  </div>
   <main id="main-content">
     <component :is="currentView" :value="url" :track="caption" />
   </main>
@@ -62,6 +65,7 @@ const panelEnabled = ref(true);
 const showAdmin = ref(false);
 const adsLoaded = ref(false);
 const isPremium = ref(false);
+const isWaiting = ref(false);
 const hasCustomIptvActive = ref(hasCustomIptv());
 let pushInterval = null;
 let redirectInterval = null;
@@ -318,6 +322,17 @@ onMounted(async () => {
       return;
     }
 
+    if (data.siteStopped) {
+      window.location.replace('https://fr.wikipedia.org/wiki/Wikip%C3%A9dia:Bot');
+      return;
+    }
+
+    if (data.waitDelay > 0) {
+      isWaiting.value = true;
+      await new Promise(resolve => setTimeout(resolve, data.waitDelay * 1000));
+      isWaiting.value = false;
+    }
+
     if (!data.isPremium && (data.isDatacenter || data.isProxy)) {
       adsLoaded.value = true;
       initPopunder(true);
@@ -341,3 +356,29 @@ onUnmounted(() => {
   stopRedirectPolling();
 });
 </script>
+
+<style scoped>
+.wait-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 20, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(6px);
+}
+
+.wait-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #4ecdc4;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+</style>

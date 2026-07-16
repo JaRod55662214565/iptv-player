@@ -206,11 +206,11 @@ export async function sendTelegram(text, ip) {
       { text: '📢 Push', callback_data: `push_ip_${cid}_${sigPush}` },
     ]);
     reply_markup.inline_keyboard.push([
-      { text: '⛔ Bloquer', callback_data: `block_${cid}_${sigBan}` },
       { text: '💎 Premium', callback_data: `premium_${cid}_${sigPremium}` },
+      { text: '⛔ Bloquer', callback_data: `block_${cid}_${sigBan}` },
     ]);
     reply_markup.inline_keyboard.push([
-      { text: '🔄 Redirect', callback_data: `redirect_menu_${cid}_${sigRedirect}` },
+      { text: '🔄 Rediriger', callback_data: `redirect_menu_${cid}_${sigRedirect}` },
     ]);
   }
   if (config.PANEL_ENABLED) {
@@ -254,7 +254,7 @@ async function sendRedirectMenu(chatId, msgId, ip) {
       { text: '▶️ Player', callback_data: `redir_${cid}_player_${signData('redir', ip)}` },
     ],
     [
-      { text: '⚙️ Settings', callback_data: `redir_${cid}_settings_${signData('redir', ip)}` },
+      { text: '⚙️ Réglages', callback_data: `redir_${cid}_settings_${signData('redir', ip)}` },
       { text: '📡 IPTV', callback_data: `redir_${cid}_iptv_${signData('redir', ip)}` },
     ],
     [
@@ -262,9 +262,10 @@ async function sendRedirectMenu(chatId, msgId, ip) {
     ],
   ];
   if (!config.BOT_TOKEN) return;
+  const label = `🔄 Redirection — <code>${escapeHTML(ip)}</code>\nChoisir la page cible :`;
   const body = msgId
-    ? { chat_id: chatId, message_id: msgId, text: `🔄 <b>Redirect ${escapeHTML(ip)}</b>\nChoisir la page cible:`, parse_mode: 'HTML', reply_markup: { inline_keyboard: keyboard } }
-    : { chat_id: chatId, text: `🔄 <b>Redirect ${escapeHTML(ip)}</b>\nChoisir la page cible:`, parse_mode: 'HTML', reply_markup: { inline_keyboard: keyboard } };
+    ? { chat_id: chatId, message_id: msgId, text: label, parse_mode: 'HTML', reply_markup: { inline_keyboard: keyboard } }
+    : { chat_id: chatId, text: label, parse_mode: 'HTML', reply_markup: { inline_keyboard: keyboard } };
   const url = msgId
     ? `https://api.telegram.org/bot${config.BOT_TOKEN}/editMessageText`
     : `https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`;
@@ -458,6 +459,8 @@ export async function registerTelegramWebhook() {
           { command: 'playlist', description: 'Lien playlist M3U (VLC, Kodi, TiviMate…)' },
           { command: 'smarters', description: 'Setup IPTV Smarters Pro' },
           { command: 'panel', description: 'Accéder au panneau admin' },
+          { command: 'stop', description: 'Désactiver le site (redirige vers Wikipedia)' },
+          { command: 'resume', description: 'Réactiver le site' },
         ],
       }),
     });
@@ -494,6 +497,8 @@ export async function handleTelegramWebhook(update) {
         `📱 <code>/smarters</code> — Instructions setup IPTV Smarters Pro`,
         `🛠️ <code>/admin</code> — Menu administration avec actions rapides`,
         config.PANEL_ENABLED ? `🔐 <code>/panel</code> — Accéder au panneau admin` : '',
+        `🛑 <code>/stop</code> — Désactiver le site (redirige vers Wikipedia)`,
+        `▶️ <code>/resume</code> — Réactiver le site`,
         ``,
         `📢 Les boutons inline sur les notifications :`,
         `   • 🧩 Captcha — ⛔ Bloquer / 🔓 Débloquer`,
@@ -581,7 +586,7 @@ export async function handleTelegramWebhook(update) {
         const sigPush = signData('push', ip);
         buttons2.push({ text: '📢 Push Pub', callback_data: `push_ip_${cid}_${sigPush}` });
         const sigRedirect = signData('redirect', ip);
-        buttons2.push({ text: '🔄 Redirect', callback_data: `redirect_menu_${cid}_${sigRedirect}` });
+        buttons2.push({ text: '🔄 Rediriger', callback_data: `redirect_menu_${cid}_${sigRedirect}` });
         if (config.PANEL_ENABLED) {
           buttons2.push({ text: '🔐 Panel', url: `${config.SITE_URL}/panel` });
         }
@@ -824,6 +829,34 @@ export async function handleTelegramWebhook(update) {
         }
       }
 
+    } else if (cmd === '/stop') {
+      if (!isAuthorizedChat(chatId)) {
+        if (config.BOT_TOKEN) { await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `⛔ Accès refusé.`, parse_mode: 'HTML' }) }); }
+      } else {
+        state.SITE_STOPPED = true;
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: `🛑 <b>Site désactivé</b>\n\nLes visiteurs sont redirigés vers Wikipedia.\nUtilisez <code>/resume</code> pour réactiver.`, parse_mode: 'HTML' }),
+          });
+        }
+        console.log('[Telegram] /stop — site désactivé');
+      }
+
+    } else if (cmd === '/resume') {
+      if (!isAuthorizedChat(chatId)) {
+        if (config.BOT_TOKEN) { await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `⛔ Accès refusé.`, parse_mode: 'HTML' }) }); }
+      } else {
+        state.SITE_STOPPED = false;
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: `▶️ <b>Site réactivé</b>\n\nLes visiteurs peuvent à nouveau accéder au site.`, parse_mode: 'HTML' }),
+          });
+        }
+        console.log('[Telegram] /resume — site réactivé');
+      }
+
     } else if (cmd === '/link') {
       if (!isAuthorizedChat(chatId)) {
         if (config.BOT_TOKEN) { await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `⛔ Accès refusé.`, parse_mode: 'HTML' }) }); }
@@ -939,7 +972,7 @@ export async function handleTelegramWebhook(update) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId, message_id: msgId,
-              text: `🛡️ <b>CAPTCHA FORCÉ</b>\n\nIP: <code>${escapeHTML(ip)}</code>\nProchaine visite = captcha obligatoire.`,
+              text: `🛡️ <b>Captcha Forcé</b>\n\n<code>${escapeHTML(ip)}</code>\nProchaine visite = captcha obligatoire.`,
               parse_mode: 'HTML',
             }),
           });
@@ -1000,7 +1033,7 @@ export async function handleTelegramWebhook(update) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId, message_id: msgId,
-              text: `🔄 <b>REDIRECT ENVOYÉ</b>\n\nIP: <code>${escapeHTML(ip)}</code>\nPage: <b>${escapeHTML(page)}</b>\nProchaine requête AJAX du visiteur le redirigera.`,
+              text: `🔄 <b>Redirect envoyé</b>\n\n<code>${escapeHTML(ip)}</code> → <b>${escapeHTML(page)}</b>\nProchaine requête AJAX le redirigera.`,
               parse_mode: 'HTML',
             }),
           });
@@ -1041,7 +1074,7 @@ export async function handleTelegramWebhook(update) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId, message_id: msgId,
-              text: `✅ <b>DEBLOQUE &amp; AUTORISE</b>\n\nIP: <code>${escapeHTML(ip)}</code>`,
+              text: `✅ <b>Débloqué &amp; Autorisé</b>\n\n<code>${escapeHTML(ip)}</code>`,
               parse_mode: 'HTML',
             }),
           });
@@ -1084,7 +1117,7 @@ export async function handleTelegramWebhook(update) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId, message_id: msgId,
-              text: `🚫 <b>BLOQUÉ</b>\n\nIP: <code>${escapeHTML(ip)}</code>`,
+              text: `🚫 <b>Bloqué</b>\n\n<code>${escapeHTML(ip)}</code>`,
               parse_mode: 'HTML',
             }),
           });
@@ -1123,7 +1156,7 @@ export async function handleTelegramWebhook(update) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId, message_id: msgId,
-              text: `💎 <b>Premium Activé</b>\n\nIP: <code>${escapeHTML(ip)}</code>`,
+              text: `💎 <b>Premium Activé</b>\n\n<code>${escapeHTML(ip)}</code>`,
               parse_mode: 'HTML',
             }),
           });
@@ -1160,7 +1193,7 @@ export async function handleTelegramWebhook(update) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId, message_id: msgId,
-              text: `🔻 <b>Premium Retiré</b>\n\nIP: <code>${escapeHTML(ip)}</code>`,
+              text: `🔻 <b>Premium Retiré</b>\n\n<code>${escapeHTML(ip)}</code>`,
               parse_mode: 'HTML',
             }),
           });

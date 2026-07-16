@@ -47,6 +47,7 @@ export const state = {
   FORCE_CAPTCHA: new Set(),
   PENDING_REDIRECTS: new Map(),
   WAIT_DELAY: 0,
+  SITE_STOPPED: false,
   NOTIF_THROTTLE: { count: 0, windowStart: Date.now() },
   IP_CALLBACK_MAP: new Map(),
 };

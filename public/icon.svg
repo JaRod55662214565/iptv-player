@@ -1,69 +1,38 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg-grad" x1="0" y1="0" x2="180" y2="180" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#0d0d1a"/>
-      <stop offset="100%" stop-color="#080812"/>
+    <!-- Play triangle gradient: horizontal flow L→R (direction of play) -->
+    <linearGradient id="play-fill" x1="226" y1="256" x2="300" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#29F4FF"/>
     </linearGradient>
-    <radialGradient id="glow-cyan" cx="42%" cy="38%" r="55%">
-      <stop offset="0%" stop-color="#00d9ff" stop-opacity="0.35"/>
-      <stop offset="50%" stop-color="#00d9ff" stop-opacity="0.08"/>
-      <stop offset="100%" stop-color="#00d9ff" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="glow-magenta" cx="72%" cy="72%" r="45%">
-      <stop offset="0%" stop-color="#ff00ff" stop-opacity="0.18"/>
-      <stop offset="100%" stop-color="#ff00ff" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="play-fill" x1="72" y1="62" x2="116" y2="98" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#00eaff"/>
-      <stop offset="100%" stop-color="#00a8cc"/>
-    </linearGradient>
-    <linearGradient id="ring-grad" x1="44" y1="44" x2="136" y2="136" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#00d9ff" stop-opacity="0.85"/>
-      <stop offset="45%" stop-color="#00d9ff" stop-opacity="0.20"/>
-      <stop offset="100%" stop-color="#ff00ff" stop-opacity="0.60"/>
-    </linearGradient>
-    <filter id="neon-glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
+
+    <!-- Outer ring halo — tight, subtle -->
+    <filter id="ring-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="7"/>
     </filter>
-    <filter id="soft-glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="3.5"/>
+
+    <!-- Play triangle soft glow -->
+    <filter id="play-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5"/>
     </filter>
-    <clipPath id="icon-clip">
-      <rect width="180" height="180" rx="40"/>
-    </clipPath>
   </defs>
 
-  <g clip-path="url(#icon-clip)">
-    <rect width="180" height="180" fill="url(#bg-grad)"/>
-    <rect width="180" height="180" fill="url(#glow-cyan)"/>
-    <rect width="180" height="180" fill="url(#glow-magenta)"/>
+  <!-- Fond cercle — #051A21 -->
+  <circle cx="256" cy="256" r="256" fill="#051A21"/>
 
-    <!-- Ring glow layer -->
-    <circle cx="90" cy="90" r="50" fill="none" stroke="url(#ring-grad)" stroke-width="2.5" opacity="0.45" filter="url(#soft-glow)"/>
-    <!-- Ring main stroke -->
-    <circle cx="90" cy="90" r="50" fill="none" stroke="url(#ring-grad)" stroke-width="2" opacity="0.9"/>
+  <!-- Anneau extérieur — halo diffus (5-10% intensity) -->
+  <circle cx="256" cy="256" r="234" fill="none" stroke="#00D8FF" stroke-width="7" opacity="0.08" filter="url(#ring-glow)"/>
+  <!-- Anneau extérieur — trait principal -->
+  <circle cx="256" cy="256" r="234" fill="none" stroke="#00D8FF" stroke-width="2" opacity="0.90"/>
 
-    <!-- Play glow -->
-    <path d="M72 60 L72 120 L120 90 Z" fill="#00d9ff" filter="url(#neon-glow)" opacity="0.40"/>
+  <!-- Anneau intérieur — cyan foncé -->
+  <circle cx="256" cy="256" r="214" fill="none" stroke="#007A8C" stroke-width="1.2" opacity="0.40"/>
 
-    <!-- Play button -->
-    <path d="M76 64 L76 116 L116 90 Z" fill="url(#play-fill)"/>
+  <!-- Cercle central — "petit cercle parfaitement aligné" -->
+  <circle cx="256" cy="256" r="68" fill="none" stroke="#00D8FF" stroke-width="1.8" opacity="0.60"/>
 
-    <!-- Play highlight -->
-    <path d="M82 72 L82 96 L97 84 Z" fill="#ffffff" opacity="0.14"/>
-
-    <!-- Signal bars (broadcast accent, bottom-right) -->
-    <g transform="translate(108 102)">
-      <rect x="0" y="14" width="3.2" height="10" rx="1.6" fill="#ff00ff" opacity="0.80"/>
-      <rect x="6" y="8" width="3.2" height="16" rx="1.6" fill="#ff00ff" opacity="0.55"/>
-      <rect x="12" y="2" width="3.2" height="22" rx="1.6" fill="#ff00ff" opacity="0.35"/>
-    </g>
-  </g>
-
-  <!-- Border stroke -->
-  <rect x="0.5" y="0.5" width="179" height="179" rx="39.5" fill="none" stroke="rgba(0,217,255,0.20)" stroke-width="1"/>
+  <!-- Play — glow layer -->
+  <path d="M238 214 L238 298 L302 256 Z" fill="#00D8FF" opacity="0.10" filter="url(#play-glow)"/>
+  <!-- Play — triangle principal -->
+  <path d="M240 218 L240 294 L298 256 Z" fill="url(#play-fill)"/>
 </svg>
