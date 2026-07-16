@@ -461,6 +461,7 @@ export async function registerTelegramWebhook() {
           { command: 'panel', description: 'Accéder au panneau admin' },
           { command: 'stop', description: 'Désactiver le site (redirige vers Wikipedia)' },
           { command: 'resume', description: 'Réactiver le site' },
+          { command: 'id', description: 'Rechercher une session par ID (ex: /id abc123)' },
         ],
       }),
     });
@@ -499,6 +500,7 @@ export async function handleTelegramWebhook(update) {
         config.PANEL_ENABLED ? `🔐 <code>/panel</code> — Accéder au panneau admin` : '',
         `🛑 <code>/stop</code> — Désactiver le site (redirige vers Wikipedia)`,
         `▶️ <code>/resume</code> — Réactiver le site`,
+        `🔍 <code>/id &lt;session_id&gt;</code> — Rechercher une session par ID`,
         ``,
         `📢 Les boutons inline sur les notifications :`,
         `   • 🧩 Captcha — ⛔ Bloquer / 🔓 Débloquer`,
@@ -740,6 +742,117 @@ export async function handleTelegramWebhook(update) {
           });
         }
         console.log('[Telegram] /visits');
+      }
+
+    } else if (/^\/id(\s|$)/i.test(cmd)) {
+      const sessionId = cmd.replace(/^\/id\s*/i, '').trim();
+      if (!sessionId) {
+        if (config.BOT_TOKEN) {
+          await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: `⚠️ Usage: <code>/id &lt;session_id&gt;</code>\nEx: <code>/id a7b678f0446ffe89</code>`, parse_mode: 'HTML' }),
+          });
+        }
+        console.log(`[Telegram] /id usage invalide: "${cmd}"`);
+      } else if (!isAuthorizedChat(chatId)) {
+        if (config.BOT_TOKEN) { await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: `⛔ Accès refusé.`, parse_mode: 'HTML' }) }); }
+      } else {
+        const session = state.VISITS.find(v => v.id === sessionId);
+        if (!session) {
+          if (config.BOT_TOKEN) {
+            await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: chatId, text: `❌ Session <code>${escapeHTML(sessionId)}</code> introuvable.`, parse_mode: 'HTML' }),
+            });
+          }
+          console.log(`[Telegram] /id introuvable: ${sessionId}`);
+        } else {
+          const visitCount = state.VISITS.filter(v => v.ip === session.ip).length;
+          const isBanned = state.BANS_LOOKUP.has(session.ip);
+          const isPremiumUser = state.PREMIUM_LOOKUP.has(session.ip);
+          const isWhitelisted = state.WHITELIST_LOOKUP.has(session.ip);
+
+          const statusLabel = session.isASNBlocked ? '🚫 ASN bloqué' : isBanned ? '🚫 Banni' : session.isDatacenter ? '🤖 Bot / Datacenter' : session.isProxy ? '⚠️ Proxy' : isPremiumUser ? '💎 Premium' : isWhitelisted ? '✅ Whitelisté' : '👤 Visiteur';
+          const flag = (session.countryCode || '??').toUpperCase();
+          const locStr = [session.country, session.city].filter(Boolean).join(' · ') || 'Inconnu';
+          const deviceStr = [session.platform, session.browser].filter(Boolean).join(' · ') || 'Inconnu';
+          const langStr = session.languages && session.languages.length > 0 ? session.languages.slice(0, 3).join(', ') : '—';
+          const channelStr = session.channelName ? `📺 ${escapeHTML(session.channelName)}` : '';
+
+          const pageEmojis = { accueil: '🏠', player: '▶️', settings: '⚙️', captcha: '🧩', share: '📤', admin: '🔐', iptv: '📡', login: '🔑' };
+          const ipData = state.IP_VISITS[session.ip];
+          let pageLines = '';
+          if (ipData && ipData.pages) {
+            const entries = Object.entries(ipData.pages).sort((a, b) => b[1] - a[1]);
+            if (entries.length > 0) {
+              pageLines = entries.map(([page, count]) => {
+                const emoji = pageEmojis[page] || '📄';
+                return `${emoji} ${page} × ${count}`;
+              }).join('\n');
+            }
+          }
+
+          const lastVisit = new Date(session.timestamp).toLocaleString('fr-FR');
+
+          const lines = [
+            `🆔 <b>Session Lookup</b>`,
+            ``,
+            `🔑 ID: <code>${escapeHTML(session.id)}</code>`,
+            ``,
+            `${statusLabel}  ·  🔁 <b>${visitCount}x</b>`,
+            `📍 IP: <code>${escapeHTML(session.ip)}</code>`,
+            `${flag} 🌍 <b>${escapeHTML(session.country || 'Inconnu')}</b>  ·  🏴 ${escapeHTML(flag)}`,
+            `📡 ISP: ${escapeHTML(session.isp || 'N/A')}`,
+            `🔧 Device: ${escapeHTML(deviceStr)}`,
+            `💻 Platform: ${escapeHTML(session.platform || 'Inconnu')}`,
+            `🌐 Browser: ${escapeHTML(session.browser || 'Inconnu')} ${escapeHTML(session.browserVersion || '')}`,
+            `🈯 Languages: ${escapeHTML(langStr)}`,
+            `📱 Mobile: ${session.isTouch ? 'Yes ✅' : 'No ❌'}`,
+            channelStr ? `${channelStr}` : null,
+            `📅 Dernière visite: ${lastVisit}`,
+            pageLines ? `📄 Pages visitées :` : null,
+            pageLines || null,
+          ].filter(Boolean).join('\n');
+
+          const buttons = [];
+          const cid = ipToCallbackId(session.ip);
+          const sigCaptcha = signData('captcha', session.ip);
+          buttons.push({ text: '🛡️ Captcha', callback_data: `captcha_${cid}_${sigCaptcha}` });
+          if (isBanned) {
+            const sigUnban = signData('unban', session.ip);
+            buttons.push({ text: '🔓 Débloquer', callback_data: `unban_${cid}_${sigUnban}` });
+          } else {
+            const sigBan = signData('ban', session.ip);
+            buttons.push({ text: '⛔ Bloquer', callback_data: `block_${cid}_${sigBan}` });
+          }
+          if (isPremiumUser) {
+            const sigUnpremium = signData('unpremium', session.ip);
+            buttons.push({ text: '🔻 Retirer Premium', callback_data: `unpremium_${cid}_${sigUnpremium}` });
+          } else {
+            const sigPremium = signData('premium', session.ip);
+            buttons.push({ text: '💎 Premium', callback_data: `premium_${cid}_${sigPremium}` });
+          }
+          const buttons2 = [];
+          const sigPush = signData('push', session.ip);
+          buttons2.push({ text: '📢 Push Pub', callback_data: `push_ip_${cid}_${sigPush}` });
+          const sigRedirect = signData('redirect', session.ip);
+          buttons2.push({ text: '🔄 Rediriger', callback_data: `redirect_menu_${cid}_${sigRedirect}` });
+          if (config.PANEL_ENABLED) {
+            buttons2.push({ text: '🔐 Panel', url: `${config.SITE_URL}/panel` });
+          }
+
+          if (config.BOT_TOKEN) {
+            await fetch(`https://api.telegram.org/bot${config.BOT_TOKEN}/sendMessage`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: chatId, text: lines, parse_mode: 'HTML',
+                disable_web_page_preview: true,
+                reply_markup: { inline_keyboard: [buttons, buttons2] },
+              }),
+            });
+          }
+          console.log(`[Telegram] /id lookup: ${sessionId} -> ${session.ip}`);
+        }
       }
 
     } else if (cmd.startsWith('/ban ')) {
