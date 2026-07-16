@@ -292,6 +292,7 @@ async function sendRedirectMenu(chatId, msgId, ip) {
       { text: '📡 IPTV', callback_data: `redir_${cid}_iptv_${signData('redir', ip)}` },
     ],
     [
+      { text: '📤 Partager', callback_data: `redir_${cid}_share_${signData('redir', ip)}` },
       { text: '✖ Annuler', callback_data: 'admin_close' },
     ],
   ];

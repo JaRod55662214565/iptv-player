@@ -32,6 +32,14 @@
   <div v-if="isWaiting" class="wait-overlay">
     <div class="wait-spinner"></div>
   </div>
+  <div v-if="isRedirecting" class="redirect-overlay">
+    <div class="redirect-card">
+      <div class="redirect-icon">{{ redirectIcon }}</div>
+      <div class="redirect-spinner"></div>
+      <div class="redirect-text">{{ redirectMessage }}</div>
+      <div class="redirect-sub">{{ redirectSub }}</div>
+    </div>
+  </div>
   <main id="main-content">
     <component :is="currentView" :value="url" :track="caption" />
   </main>
@@ -66,6 +74,10 @@ const showAdmin = ref(false);
 const adsLoaded = ref(false);
 const isPremium = ref(false);
 const isWaiting = ref(false);
+const isRedirecting = ref(false);
+const redirectIcon = ref('');
+const redirectMessage = ref('');
+const redirectSub = ref('');
 const hasCustomIptvActive = ref(hasCustomIptv());
 let pushInterval = null;
 let redirectInterval = null;
@@ -81,21 +93,40 @@ function trackPage(page) {
   }).catch(() => {});
 }
 
+const redirectLabels = {
+  accueil: { icon: '🏠', msg: 'Redirection vers l\'accueil...', sub: 'Vous allez être redirigé' },
+  player: { icon: '▶️', msg: 'Retour au player...', sub: 'Lecture en cours' },
+  settings: { icon: '⚙️', msg: 'Ouverture des réglages...', sub: 'Configuration' },
+  iptv: { icon: '📡', msg: 'Chargement IPTV...', sub: 'Connexion au serveur' },
+  share: { icon: '📤', msg: 'Page de partage...', sub: 'Lien de partage' },
+};
+
 function startRedirectPolling() {
   redirectPollInterval = setInterval(async () => {
     try {
       const res = await fetch('/api/redirect-status');
       const data = await res.json();
       if (data.ok && data.redirect) {
-        const redirectMap = {
+        const info = redirectLabels[data.redirect] || { icon: '🔄', msg: 'Redirection...', sub: '' };
+        redirectIcon.value = info.icon;
+        redirectMessage.value = info.msg;
+        redirectSub.value = info.sub;
+        isRedirecting.value = true;
+
+        await new Promise(r => setTimeout(r, 1800));
+
+        const redirectActions = {
           accueil: () => { window.location.hash = '#/'; },
           player: () => { /* keep current */ },
           settings: () => { showSettings.value = true; },
           iptv: () => { currentMode.value = 'iptv'; loadForMode('iptv', true); },
+          share: () => { showShareLink.value = true; },
         };
-        if (redirectMap[data.redirect]) {
-          redirectMap[data.redirect]();
+        if (redirectActions[data.redirect]) {
+          redirectActions[data.redirect]();
         }
+        await new Promise(r => setTimeout(r, 400));
+        isRedirecting.value = false;
       }
     } catch {}
   }, 2000);
@@ -376,6 +407,71 @@ onUnmounted(() => {
   border-top-color: #4ecdc4;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+.redirect-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 26, 33, 0.96);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  backdrop-filter: blur(12px);
+  animation: fadeIn 300ms ease-out;
+}
+
+.redirect-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  animation: slideUp 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.redirect-icon {
+  font-size: 4rem;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.redirect-spinner {
+  width: 56px;
+  height: 56px;
+  border: 4px solid rgba(0, 217, 255, 0.15);
+  border-top-color: #00D8FF;
+  border-right-color: #00E5FF;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  box-shadow: 0 0 30px rgba(0, 217, 255, 0.2), inset 0 0 20px rgba(0, 217, 255, 0.05);
+}
+
+.redirect-text {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #E0F7FA;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.redirect-sub {
+  font-size: 0.85rem;
+  color: rgba(224, 247, 250, 0.5);
+  text-align: center;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
 }
 
 @keyframes spin {
