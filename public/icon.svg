@@ -32,7 +32,7 @@
   <circle cx="256" cy="256" r="68" fill="none" stroke="#00D8FF" stroke-width="1.8" opacity="0.60"/>
 
   <!-- Play — glow layer -->
-  <path d="M238 214 L238 298 L302 256 Z" fill="#00D8FF" opacity="0.10" filter="url(#play-glow)"/>
+  <path d="M220 194 L220 318 L316 256 Z" fill="#00D8FF" opacity="0.10" filter="url(#play-glow)"/>
   <!-- Play — triangle principal -->
-  <path d="M240 218 L240 294 L298 256 Z" fill="url(#play-fill)"/>
+  <path d="M224 200 L224 312 L312 256 Z" fill="url(#play-fill)"/>
 </svg>
